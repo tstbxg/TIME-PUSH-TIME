@@ -1,7 +1,7 @@
 {
     "app_id": "wx527b9473371af8fd",
     "app_secret": "3a9dea7c2da6be5b036672b45882f3d5",
-    "template_id": "_aJ8GcUJDVPahLxgxA5-mcx6jpMKbb7lBnOBaJH2i40",
+    "template_id": "L2_zjvfmvKj0MbFxtx7B8F10o",
     "user": ["ohNC759FgSfc_DqfePQhxPBg1klk", "ohNC7502wcmBzkSGxzxF1vOVuuGg"],
     "province": "广东",
     "city": "广州",
@@ -18,3 +18,4 @@
     "tianxing_API": "7e4342d0d8f8d927af149d07be9747a5",
     "astro": "白羊座"
 }
+
