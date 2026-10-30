@@ -1,368 +1,179 @@
-import random
-from time import time, localtime
-import cityinfo
-from requests import get, post
-from datetime import datetime, date
-import sys
-import os
-import http.client, urllib
 import json
-from zhdate import ZhDate
+import requests
+from datetime import datetime
 
+# 读取配置文件
+with open("config.json", "r", encoding="utf-8") as f:
+    cfg = json.load(f)
 
-def get_color():
-    # 获取随机颜色
-    get_colors = lambda n: list(map(lambda i: "#" + "%06x" % random.randint(0, 0xFFFFFF), range(n)))
-    color_list = get_colors(100)
-    return random.choice(color_list)
+APP_ID = cfg["app_id"]
+APP_SECRET = cfg["app_secret"]
+TEMPLATE_ID = cfg["template_id"]
+USER_LIST = cfg["user"]
+PROVINCE = cfg["province"]
+CITY = cfg["city"]
+BIRTHDAY1 = cfg["birthday1"]
+BIRTHDAY2 = cfg["birthday2"]
+BIRTHDAY3 = cfg["birthday3"]
+LOVE_DATE = cfg["love_date"]
+TIANXING_KEY = cfg["tianxing_API"]
+ASTRO = cfg["astro"]
+
+Whether_Eng = cfg["Whether_Eng"]
+Whether_caihongpi = cfg["Whether_caihongpi"]
+Whether_lizhi = cfg["Whether_lizhi"]
+Whether_tip = cfg["Whether_tip"]
+Whether_health = cfg["Whether_health"]
+Whether_lucky = cfg["Whether_lucky"]
 
 
 def get_access_token():
-    # appId
-    app_id = config["app_id"]
-    # appSecret
-    app_secret = config["app_secret"]
-    post_url = ("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={}&secret={}"
-                .format(app_id, app_secret))
+    url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
+    res = requests.get(url).json()
+    return res.get("access_token")
+
+
+# 计算纪念日/生日剩余天数
+def calc_day(target_date_str):
+    is_relative = target_date_str.startswith("r")
+    if is_relative:
+        target_date_str = target_date_str[1:]
+    target = datetime.strptime(target_date_str, "%Y-%m-%d")
+    today = datetime.now()
+    this_year_target = datetime(today.year, target.month, target.day)
+    if this_year_target < today:
+        this_year_target = datetime(today.year + 1, target.month, target.day)
+    return (this_year_target - today).days
+
+
+# 恋爱天数
+def get_love_days():
+    start = datetime.strptime(LOVE_DATE, "%Y-%m-%d")
+    return (datetime.now() - start).days
+
+
+# 天行接口通用请求
+def tianxing_req(api_path):
     try:
-        access_token = get(post_url, timeout=10).json()['access_token']
-    except KeyError:
-        print("获取access_token失败，请检查app_id和app_secret是否正确")
-        os.system("pause")
-        sys.exit(1)
-    return access_token
-
-
-def get_birthday(birthday, year, today):
-    birthday_year = birthday.split("-")[0]
-    # 判断是否为农历生日
-    if birthday_year[0] == "r":
-        r_mouth = int(birthday.split("-")[1])
-        r_day = int(birthday.split("-")[2])
-        # 今年生日
-        birthday = ZhDate(year, r_mouth, r_day).to_datetime().date()
-        year_date = birthday
-    else:
-        # 获取国历生日的今年对应月和日
-        birthday_month = int(birthday.split("-")[1])
-        birthday_day = int(birthday.split("-")[2])
-        # 今年生日
-        year_date = date(year, birthday_month, birthday_day)
-    # 计算生日年份，如果还没过，按当年减，如果过了需要+1
-    if today > year_date:
-        if birthday_year[0] == "r":
-            # 获取农历明年生日的月和日
-            r_last_birthday = ZhDate((year + 1), r_mouth, r_day).to_datetime().date()
-            birth_date = date((year + 1), r_last_birthday.month, r_last_birthday.day)
+        url = f"https://api.tianapi.com/{api_path}?key={TIANXING_KEY}"
+        r = requests.get(url, timeout=10)
+        data = r.json()
+        if data.get("code") == 200 and data.get("newslist"):
+            return data["newslist"][0]
         else:
-            birth_date = date((year + 1), birthday_month, birthday_day)
-        birth_day = str(birth_date.__sub__(today)).split(" ")[0]
-    elif today == year_date:
-        birth_day = 0
-    else:
-        birth_date = year_date
-        birth_day = str(birth_date.__sub__(today)).split(" ")[0]
-    return birth_day
+            return None
+    except Exception:
+        return None
 
 
-def get_weather(province, city):
-    # 城市id
+# 获取天气（下雨概率pop、天气、高低温、tips）
+def get_weather():
     try:
-        city_id = cityinfo.cityInfo[province][city]["AREAID"]
-    except KeyError:
-        print("推送消息失败，请检查省份或城市是否正确")
-        os.system("pause")
-        sys.exit(1)
-    t = (int(round(time() * 1000)))
-    headers = {
-        "Referer": "http://www.weather.com.cn/weather1d/{}.shtml".format(city_id),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
-    }
-    url = "http://d1.weather.com.cn/dingzhi/{}.html?_={}".format(city_id, t)
-    response = get(url, headers=headers, timeout=10)
-    response.encoding = "utf-8"
-    response_data = response.text.split(";")[0].split("=")[-1]
-    try:
-        response_json = eval(response_data)
-    except Exception as e:
-        print("天气接口解析异常", e)
-        sys.exit(1)
-    weatherinfo = response_json["weatherinfo"]
-    # 天气
-    weather = weatherinfo["weather"]
-    # 最高气温
-    temp = weatherinfo["temp"]
-    # 最低气温
-    tempn = weatherinfo["tempn"]
-    return weather, temp, tempn
+        url = f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&prov={PROVINCE}&city={CITY}"
+        r = requests.get(url, timeout=10).json()
+        if r["code"] == 200:
+            w = r["newslist"][0]
+            return {
+                "weather": w["weather"],
+                "min_t": w["lowest"],
+                "max_t": w["highest"],
+                "pop": w.get("pop", "无"),
+                "tips": w["tips"]
+            }
+    except Exception:
+        pass
+    return {"weather": "获取失败", "min_t": "获取失败", "max_t": "获取失败", "pop": "获取失败", "tips": "获取失败"}
 
 
-#词霸每日一句
-def get_ciba():
+def main():
+    token = get_access_token()
+    if not token:
+        print("access_token 获取失败！检查appid/appsecret")
+        return
+
+    today_str = datetime.now().strftime("%Y-%m-%d %A")
+    love_day = get_love_days()
+    weather_info = get_weather()
+
+    note_en = ""
+    note_ch = ""
     if Whether_Eng:
-        try:
-            url = "http://open.iciba.com/dsapi/"
-            headers = {
-                'Content-Type': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                            'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
-            }
-            r = get(url, headers=headers, timeout=10)
-            note_en = r.json()["content"]
-            note_ch = r.json()["note"]
-            return (note_en, note_ch)
-        except Exception as e:
-            print("词霸API异常：", e)
-            return ("词霸API调取错误", "词霸API调取错误")
-    else:
-        return ("", "")
+        eng_data = tianxing_req("enwords/index")
+        if eng_data:
+            note_en = eng_data["en"]
+            note_ch = eng_data["zh"]
+        else:
+            note_en = "获取失败"
+            note_ch = "获取失败"
 
-
-#彩虹屁
-def caihongpi():
+    pipi = "获取失败"
     if Whether_caihongpi:
-        try:
-            conn = http.client.HTTPSConnection('api.tianapi.com')
-            params = urllib.parse.urlencode({'key':tianxing_API})
-            headers = {'Content-type':'application/x-www-form-urlencoded'}
-            conn.request('POST','/caihongpi/index',params,headers)
-            res = conn.getresponse()
-            data = res.read()
-            data = json.loads(data)
-            data = data["newslist"][0]["content"]
-            if("XXX" in data):
-                data = data.replace("XXX","蒋蒋")
-            return data
-        except Exception as e:
-            print("彩虹屁API异常：", e)
-            return ("彩虹屁API调取错误，请检查API是否正确申请或是否填写正确")
-    else:
-        return ""
+        pi_data = tianxing_req("caihongpi/index")
+        if pi_data:
+            pipi = pi_data["content"]
 
-
-#健康小提示API
-def health():
-    if Whether_health:
-        try:
-            conn = http.client.HTTPSConnection('api.tianapi.com')
-            params = urllib.parse.urlencode({'key':tianxing_API})
-            headers = {'Content-type':'application/x-www-form-urlencoded'}
-            conn.request('POST','/healthtip/index',params,headers)
-            res = conn.getresponse()
-            data = res.read()
-            data = json.loads(data)
-            data = data["newslist"][0]["content"]
-            return data
-        except Exception as e:
-            print("健康小提示API异常：", e)
-            return ("健康小提示API调取错误，请检查API是否正确申请或是否填写正确")
-    else:
-        return ""
-
-
-#星座运势
-def lucky():
-    if Whether_lucky:
-        try:
-            conn = http.client.HTTPSConnection('api.tianapi.com')
-            params = urllib.parse.urlencode({'key':tianxing_API,'astro':astro})
-            headers = {'Content-type':'application/x-www-form-urlencoded'}
-            conn.request('POST','/star/index',params,headers)
-            res = conn.getresponse()
-            data = res.read()
-            data = json.loads(data)
-            data = "爱情指数："+str(data["newslist"][1]["content"])+"   工作指数："+str(data["newslist"][2]["content"])+"\n今日概述："+str(data["newslist"][8]["content"])
-            return data
-        except Exception as e:
-            print("星座运势API异常：", e)
-            return ("星座运势API调取错误，请检查API是否正确申请或是否填写正确")
-    else:
-        return ""
-
-
-#励志名言
-def lizhi():
+    lizhi = "获取失败"
     if Whether_lizhi:
-        try:
-            conn = http.client.HTTPSConnection('api.tianapi.com')
-            params = urllib.parse.urlencode({'key':tianxing_API})
-            headers = {'Content-type':'application/x-www-form-urlencoded'}
-            conn.request('POST','/lzmy/index',params,headers)
-            res = conn.getresponse()
-            data = res.read()
-            data = json.loads(data)
-            return data["newslist"][0]["saying"]
-        except Exception as e:
-            print("励志古言API异常：", e)
-            return ("励志古言API调取错误，请检查API是否正确申请或是否填写正确")
-    else:
-        return ""
+        lz_data = tianxing_req("lzju/index")
+        if lz_data:
+            lizhi = lz_data["content"]
 
+    tips = weather_info["tips"] if Whether_tip else "已关闭"
+    pop = weather_info["pop"]
 
-#下雨概率和建议
-def tip():
-    if Whether_tip:
-        try:
-            conn = http.client.HTTPSConnection('api.tianapi.com')
-            params = urllib.parse.urlencode({'key':tianxing_API,'city':city})
-            headers = {'Content-type':'application/x-www-form-urlencoded'}
-            conn.request('POST','/tianqi/index',params,headers)
-            res = conn.getresponse()
-            data = res.read()
-            data = json.loads(data)
-            pop = data["newslist"][0]["pop"]
-            tips = data["newslist"][0]["tips"]
-            return pop, tips
-        except Exception as e:
-            print("下雨提示API异常：", e)
-            return "获取失败", "获取失败"
-    else:
-        return "", ""
+    health = "获取失败"
+    if Whether_health:
+        h_data = tianxing_req("healthtip/index")
+        if h_data:
+            health = h_data["content"]
 
+    lucky = "获取失败"
+    if Whether_lucky:
+        lu_data = tianxing_req(f"star/index?astro={ASTRO}")
+        if lu_data:
+            lucky = lu_data["content"]
 
-#推送信息
-def send_message(to_user, access_token, city_name, weather, max_temperature, min_temperature, pipi, lizhi, pop, tips, note_en, note_ch, health_tip, lucky_):
-    url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={}".format(access_token)
-    week_list = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
-    year = localtime().tm_year
-    month = localtime().tm_mon
-    day = localtime().tm_mday
-    today = datetime.date(datetime(year=year, month=month, day=day))
-    week = week_list[today.isoweekday() % 7]
-    # 获取在一起的日子的日期格式
-    love_year = int(config["love_date"].split("-")[0])
-    love_month = int(config["love_date"].split("-")[1])
-    love_day = int(config["love_date"].split("-")[2])
-    love_date = date(love_year, love_month, love_day)
-    # 获取在一起的日期差
-    love_days = str(today.__sub__(love_date)).split(" ")[0]
-    # 获取所有生日数据
-    birthdays = {}
-    for k, v in config.items():
-        if k[0:5] == "birth":
-            birthdays[k] = v
-    data = {
-        "touser": to_user,
-        "template_id": config["template_id"],
-        "url": "http://weixin.qq.com/download",
-        "topcolor": "#FF0000",
-        "data": {
-            "date": {
-                "value": "{} {}".format(today, week),
-                "color": get_color()
-            },
-            "city": {
-                "value": city_name,
-                "color": get_color()
-            },
-            "weather": {
-                "value": weather,
-                "color": get_color()
-            },
-            "min_temperature": {
-                "value": min_temperature,
-                "color": get_color()
-            },
-            "max_temperature": {
-                "value": max_temperature,
-                "color": get_color()
-            },
-            "love_day": {
-                "value": love_days,
-                "color": get_color()
-            },
-            "note_en": {
-                "value": note_en,
-                "color": get_color()
-            },
-            "note_ch": {
-                "value": note_ch,
-                "color": get_color()
-            },
-            "pipi": {
-                "value": pipi,
-                "color": get_color()
-            },
-            "lucky": {
-                "value": lucky_,
-                "color": get_color()
-            },
-            "lizhi": {
-                "value": lizhi,
-                "color": get_color()
-            },
-            "pop": {
-                "value": pop,
-                "color": get_color()
-            },
-            "health": {
-                "value": health_tip,
-                "color": get_color()
-            },
-            "tips": {
-                "value": tips,
-                "color": get_color()
-            }
+    # 随机寄言文案
+    msg_list = [
+        "新的一天，也要好好热爱生活，我一直都在❤️",
+        "早安，愿你今天所有的温柔和期待，都有回应",
+        "日子慢慢，爱意满满，今天也要开开心心",
+        "风很温柔，花很浪漫，你很特别，早安",
+        "愿平安喜乐，万事顺意，今天也要加油",
+        "岁岁年年，朝朝暮暮，我喜欢你这件事不变"
+    ]
+    import random
+    msg = random.choice(msg_list)
+
+    # ========= 这里的字段和你的微信模板严格对应！=========
+    send_data = {
+        "date": {"value": today_str},
+        "city": {"value": CITY},
+        "weather": {"value": weather_info["weather"]},
+        "min_temperature": {"value": weather_info["min_t"]},
+        "max_temperature": {"value": weather_info["max_t"]},
+        "love_day": {"value": love_day},
+        "note_en": {"value": note_en},
+        "note_ch": {"value": note_ch},
+        "pipi": {"value": pipi},
+        "lizhi": {"value": lizhi},
+        "pop": {"value": pop},
+        "tips": {"value": tips},
+        "health": {"value": health},
+        "lucky": {"value": lucky},
+        "msg": {"value": msg}
+    }
+
+    for openid in USER_LIST:
+        push_url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
+        post_body = {
+            "touser": openid,
+            "template_id": TEMPLATE_ID,
+            "data": send_data
         }
-    }
-    for key, value in birthdays.items():
-        birth_day = get_birthday(value, year, today)
-        data["data"][key] = {"value": birth_day, "color": get_color()}
-    headers = {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                      'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
-    }
-    response = post(url, headers=headers, json=data, timeout=10).json()
-    if response["errcode"] == 40037:
-        print("推送消息失败，请检查模板id是否正确")
-    elif response["errcode"] == 40036:
-        print("推送消息失败，请检查模板id是否为空")
-    elif response["errcode"] == 40003:
-        print("推送消息失败，请检查微信号是否正确")
-    elif response["errcode"] == 0:
-        print("推送消息成功")
-    else:
-        print(response)
+        resp = requests.post(push_url, json=post_body)
+        print(f"推送给 {openid} 结果：{resp.json()}")
 
 
 if __name__ == "__main__":
-    try:
-        with open("./config.json", encoding="utf-8") as f:
-            config = json.load(f)
-    except FileNotFoundError:
-        print("推送消息失败，请检查config.json文件是否与程序位于同一路径")
-        os.system("pause")
-        sys.exit(1)
-    except json.JSONDecodeError:
-        print("推送消息失败，请检查config.json格式是否正确")
-        os.system("pause")
-        sys.exit(1)
-
-    accessToken = get_access_token()
-    users = config["user"]
-    province, city = config["province"], config["city"]
-    weather, max_temperature, min_temperature = get_weather(province, city)
-    tianxing_API=config["tianxing_API"]
-    Whether_tip=config["Whether_tip"]
-    Whether_Eng=config["Whether_Eng"]
-    Whether_lucky=config["Whether_lucky"]
-    Whether_lizhi=config["Whether_lizhi"]
-    Whether_caihongpi=config["Whether_caihongpi"]
-    Whether_health=config["Whether_health"]
-    astro = config["astro"]
-
-    note_ch, note_en = get_ciba()
-    pipi = caihongpi()
-    health_tip = health()
-    pop,tips = tip()
-    lizhi = lizhi()
-    lucky_ = lucky()
-
-    for user in users:
-        send_message(user, accessToken, city, weather, max_temperature, min_temperature, pipi, lizhi,pop,tips, note_en, note_ch, health_tip, lucky_)
-
-    import time
-    time_duration = 3.5
-    time.sleep(time_duration)
+    main()
