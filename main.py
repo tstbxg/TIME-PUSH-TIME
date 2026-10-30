@@ -10,11 +10,7 @@ APP_ID = cfg["app_id"]
 APP_SECRET = cfg["app_secret"]
 TEMPLATE_ID = cfg["template_id"]
 USER_LIST = cfg["user"]
-PROVINCE = cfg["province"]
 CITY = cfg["city"]
-BIRTHDAY1 = cfg["birthday1"]
-BIRTHDAY2 = cfg["birthday2"]
-BIRTHDAY3 = cfg["birthday3"]
 LOVE_DATE = cfg["love_date"]
 TIANXING_KEY = cfg["tianxing_API"]
 ASTRO = cfg["astro"]
@@ -29,21 +25,8 @@ Whether_lucky = cfg["Whether_lucky"]
 
 def get_access_token():
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
-    res = requests.get(url).json()
+    res = requests.get(url, timeout=10).json()
     return res.get("access_token")
-
-
-# 计算纪念日/生日剩余天数
-def calc_day(target_date_str):
-    is_relative = target_date_str.startswith("r")
-    if is_relative:
-        target_date_str = target_date_str[1:]
-    target = datetime.strptime(target_date_str, "%Y-%m-%d")
-    today = datetime.now()
-    this_year_target = datetime(today.year, target.month, target.day)
-    if this_year_target < today:
-        this_year_target = datetime(today.year + 1, target.month, target.day)
-    return (this_year_target - today).days
 
 
 # 恋爱天数
@@ -69,7 +52,7 @@ def tianxing_req(api_path):
 # 获取天气（下雨概率pop、天气、高低温、tips）
 def get_weather():
     try:
-        url = f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&prov={PROVINCE}&city={CITY}"
+        url = f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&city={CITY}"
         r = requests.get(url, timeout=10).json()
         if r["code"] == 200:
             w = r["newslist"][0]
@@ -100,8 +83,8 @@ def main():
     if Whether_Eng:
         eng_data = tianxing_req("enwords/index")
         if eng_data:
-            note_en = eng_data["en"]
-            note_ch = eng_data["zh"]
+            note_en = eng_data["english"]
+            note_ch = eng_data["chinese"]
         else:
             note_en = "获取失败"
             note_ch = "获取失败"
@@ -131,7 +114,10 @@ def main():
     if Whether_lucky:
         lu_data = tianxing_req(f"star/index?astro={ASTRO}")
         if lu_data:
-            lucky = lu_data["content"]
+            love = lu_data["love"]
+            work = lu_data["work"]
+            summary = lu_data["summary"]
+            lucky = f"爱情指数：{love}  工作指数：{work}\n今日概述：{summary}"
 
     # 随机寄言文案
     msg_list = [
@@ -145,7 +131,7 @@ def main():
     import random
     msg = random.choice(msg_list)
 
-    # ========= 这里的字段和你的微信模板严格对应！=========
+    # 和微信模板变量一一对应
     send_data = {
         "date": {"value": today_str},
         "city": {"value": CITY},
@@ -171,7 +157,7 @@ def main():
             "template_id": TEMPLATE_ID,
             "data": send_data
         }
-        resp = requests.post(push_url, json=post_body)
+        resp = requests.post(push_url, json=post_body, timeout=10)
         print(f"推送给 {openid} 结果：{resp.json()}")
 
 
