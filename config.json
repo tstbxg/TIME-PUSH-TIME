@@ -3,11 +3,7 @@
     "app_secret": "3a9dea7c2da6be5b036672b45882f3d5",
     "template_id": "L2_zjvfmvKj0MbFxtx7B8F10o",
     "user": ["ohNC759FgSfc_DqfePQhxPBg1klk", "ohNC7502wcmBzkSGxzxF1vOVuuGg"],
-    "province": "广东",
     "city": "广州",
-    "birthday1": "r2002-03-09",
-    "birthday2": "r2003-03-13",
-    "birthday3": "1997-01-03",
     "love_date": "2021-12-12",
     "Whether_Eng": true,
     "Whether_caihongpi": true,
@@ -18,4 +14,3 @@
     "tianxing_API": "7e4342d0d8f8d927af149d07be9747a5",
     "astro": "白羊座"
 }
-
