@@ -158,8 +158,9 @@ def main():
             "data": send_data
         }
         resp = requests.post(push_url, json=post_body, timeout=10)
-        print(f"推送给 {openid} 结果：{resp.json()}")
-
+# 新增下面这两行
+wx_result = resp.json()
+print("【微信返回完整结果】", wx_result)
 
 if __name__ == "__main__":
     main()
