@@ -16,10 +16,10 @@ BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
 PROVINCE = cfg["province"]
 CITY = cfg["city"]
+TX_KEY = cfg["tx_key"]  # 你config里面的天行key
 
-# ====================== 文本截断函数（核心，解决省略号） ======================
+# ====================== 文本截断函数（解决省略号） ======================
 def cut_text(s, max_len=18):
-    """超过最大长度就截断，防止微信模板自动省略"""
     if not isinstance(s, str):
         s = str(s)
     if len(s) > max_len:
@@ -358,6 +358,56 @@ sweet_list = [
 "你是我的满心欢喜，永不落幕。"
 ]
 
+# ====================== 天行API获取函数 ======================
+def get_tianxing(url):
+    try:
+        res = requests.get(url, timeout=12).json()
+        if res.get("code") == 200:
+            return res["newslist"][0]
+        return "获取失败"
+    except Exception:
+        return "接口异常"
+
+# 天气
+weather_url = f"https://api.tianapi.com/tianqi/index?key={TX_KEY}&city={CITY}"
+weather_raw = get_tianxing(weather_url)
+if weather_raw != "获取失败" and weather_raw != "接口异常":
+    weather_raw = f"{weather_raw['weather']}，{weather_raw['low']}~{weather_raw['high']} | {weather_raw['tips']}"
+weather_text = cut_text(weather_raw, 18)
+
+# 励志语录
+lz_url = f"https://api.tianapi.com/lzmy/index?key={TX_KEY}"
+lizhi_raw = get_tianxing(lz_url)
+lizhi_text = cut_text(lizhi_raw, 18)
+
+# 英文句子
+en_url = f"https://api.tianapi.com/english/index?key={TX_KEY}"
+en_raw = get_tianxing(en_url)
+en_text = cut_text(en_raw, 18)
+
+# 温馨提示
+tip_url = f"https://api.tianapi.com/zhitip/index?key={TX_KEY}"
+tip_raw = get_tianxing(tip_url)
+tip_text = cut_text(tip_raw, 18)
+
+# 健康小知识
+health_url = f"https://api.tianapi.com/healthtip/index?key={TX_KEY}"
+health_raw = get_tianxing(health_url)
+health_text = cut_text(health_raw, 18)
+
+# 今日好运
+lucky_url = f"https://api.tianapi.com/haoyun/index?key={TX_KEY}"
+lucky_raw = get_tianxing(lucky_url)
+lucky_text = cut_text(lucky_raw, 18)
+
+# 星座运势（这里默认白羊座，如果你要自动匹配星座我再改）
+star_url = f"https://api.tianapi.com/star/index?key={TX_KEY}&astro=aries"
+star_raw = get_tianxing(star_url)
+star_text = cut_text(star_raw, 18)
+
+# 彩虹屁
+caihongpi = cut_text(random.choice(sweet_list), 18)
+
 # ====================== 获取access_token ======================
 def get_token():
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
@@ -370,7 +420,6 @@ love_start_dt = date.fromisoformat(LOVE_START)
 love_days = (today - love_start_dt).days
 
 def get_birthday_left(birthday_str):
-    # 去掉开头r
     if birthday_str.startswith("r"):
         birthday_str = birthday_str[1:]
     b = date.fromisoformat(birthday_str)
@@ -381,29 +430,6 @@ def get_birthday_left(birthday_str):
 
 b1_left = get_birthday_left(BIRTHDAY1)
 b2_left = get_birthday_left(BIRTHDAY2)
-
-# ====================== 这里你可以接入天行API获取：天气、励志、英文、提示、健康、好运、星座 ======================
-# 下面是占位，你保留原来的API调用逻辑，拿到内容后，全部套 cut_text()
-# 示例：
-# weather_raw = get_tianxing_weather()
-# lizhi_raw = get_tianxing_lizhi()
-# en_raw = get_tianxing_en()
-# tip_raw = get_tianxing_tip()
-# health_raw = get_tianxing_health()
-# lucky_raw = get_tianxing_lucky()
-# star_raw = get_tianxing_star()
-
-# 👉 重点：所有长文本全部包 cut_text()
-caihongpi = cut_text(random.choice(sweet_list), 18)
-
-# 【这里你把你原来天行接口的变量，改成下面格式】
-# weather_text = cut_text(weather_raw,18)
-# lizhi_text = cut_text(lizhi_raw,18)
-# en_text = cut_text(en_raw,18)
-# tip_text = cut_text(tip_raw,18)
-# health_text = cut_text(health_raw,18)
-# lucky_text = cut_text(lucky_raw,18)
-# star_text = cut_text(star_raw,18)
 
 date_text = today.strftime("%Y-%m-%d")
 love_day_text = f"我们在一起{love_days}天"
