@@ -1,10 +1,9 @@
 import json
-import time
 import datetime
 import requests
 import random
 
-# ===================== 读取配置 =====================
+# 读取你现在这套config
 with open("config.json", "r", encoding="utf-8") as f:
     cfg = json.load(f)
 
@@ -12,14 +11,18 @@ app_id = cfg["app_id"]
 app_secret = cfg["app_secret"]
 template_id = cfg["template_id"]
 user_list = cfg["user"]
-province = cfg["province"]
 city = cfg["city"]
+love_date = cfg["love_date"]
+Whether_Eng = cfg["Whether_Eng"]
+Whether_caihongpi = cfg["Whether_caihongpi"]
+Whether_lizhi = cfg["Whether_lizhi"]
+Whether_tip = cfg["Whether_tip"]
+Whether_health = cfg["Whether_health"]
+Whether_lucky = cfg["Whether_lucky"]
+tianxing_API = cfg["tianxing_API"]
+astro = cfg["astro"]
 
-birthday1 = cfg["birthday1"]
-birthday2 = cfg["birthday2"]
-birthday3 = cfg["birthday3"]
-
-# ===================== 365条寄言 =====================
+# 365条寄言
 msg_list = [
 "和你在一起的每一天，都值得珍藏。",
 "风很温柔，花很浪漫，你很特别。",
@@ -485,27 +488,18 @@ msg_list = [
 "愿往后余生，冷暖有相知，喜乐有分享，同量天地宽，共度岁月长。"
 ]
 
-# ===================== 工具函数 =====================
+# 随机寄言
 def get_random_msg():
     return random.choice(msg_list)
 
-def get_days(start_date="2021-12-12"):
+# 恋爱天数
+def get_love_days(start_date):
     start = datetime.datetime.strptime(start_date, "%Y-%m-%d")
     now = datetime.datetime.now()
     return (now - start).days
 
-def calc_birthday(birth_str):
-    # birth_str 格式 r2002-03-09
-    birth_str = birth_str.replace("r","")
-    b = datetime.datetime.strptime(birth_str, "%Y-%m-%d")
-    now = datetime.datetime.now()
-    this_year_birth = datetime.datetime(year=now.year, month=b.month, day=b.day)
-    if this_year_birth < now:
-        this_year_birth = datetime.datetime(year=now.year+1, month=b.month, day=b.day)
-    return (this_year_birth - now).days
-
-# 获取天气
-def get_weather(prov, city):
+# 天气
+def get_weather(city):
     try:
         url = f"https://wttr.in/{city}?format=j1"
         res = requests.get(url, timeout=10)
@@ -517,7 +511,25 @@ def get_weather(prov, city):
         print("天气接口异常", e)
         return "天气获取失败"
 
-# 获取微信 access_token
+# 天行API 彩虹屁/励志/英文/健康/好运/星座
+def get_tianxing(api_key, type_id):
+    try:
+        url = f"https://api.tianapi.com/{type_id}/index?key={api_key}"
+        res = requests.get(url, timeout=10)
+        return res.json()["newslist"][0]["content"]
+    except Exception:
+        return "获取失败"
+
+# 星座运势
+def get_astro(api_key, astro_name):
+    try:
+        url = f"https://api.tianapi.com/star/index?key={api_key}&astro={astro_name}"
+        res = requests.get(url, timeout=10)
+        return res.json()["newslist"][0]["content"]
+    except Exception:
+        return "星座运势获取失败"
+
+# 获取微信token
 def get_token(appid, secret):
     try:
         url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={appid}&secret={secret}"
@@ -527,14 +539,19 @@ def get_token(appid, secret):
         print("获取token失败", e)
         return {}
 
-# ===================== 主逻辑 =====================
 if __name__ == "__main__":
-    love_days = get_days("2021-12-12")
+    love_days = get_love_days(love_date)
     random_words = get_random_msg()
-    weather_info = get_weather(province, city)
-    b1_day = calc_birthday(birthday1)
-    b2_day = calc_birthday(birthday2)
-    b3_day = calc_birthday(birthday3)
+    weather_info = get_weather(city)
+
+    # 按需获取天行内容
+    caihongpi = get_tianxing(tianxing_API, "caihongpi") if Whether_caihongpi else ""
+    lizhi = get_tianxing(tianxing_API, "lizhi") if Whether_lizhi else ""
+    eng = get_tianxing(tianxing_API, "en") if Whether_Eng else ""
+    tip = get_tianxing(tianxing_API, "tip") if Whether_tip else ""
+    health = get_tianxing(tianxing_API, "health") if Whether_health else ""
+    lucky = get_tianxing(tianxing_API, "lucky") if Whether_lucky else ""
+    astro_text = get_astro(tianxing_API, astro)
 
     token_info = get_token(app_id, app_secret)
     access_token = token_info.get("access_token")
@@ -552,18 +569,19 @@ if __name__ == "__main__":
                 "date": {"value": datetime.datetime.now().strftime("%Y-%m-%d")},
                 "weather": {"value": weather_info},
                 "love_day": {"value": f"{love_days}天"},
-                "b1": {"value": f"{b1_day}天"},
-                "b2": {"value": f"{b2_day}天"},
-                "b3": {"value": f"{b3_day}天"},
-                "word": {"value": random_words}
+                "word": {"value": random_words},
+                "caihongpi": {"value": caihongpi},
+                "lizhi": {"value": lizhi},
+                "english": {"value": eng},
+                "tip": {"value": tip},
+                "health": {"value": health},
+                "lucky": {"value": lucky},
+                "astro": {"value": astro_text}
             }
         }
         try:
             resp = requests.post(push_url, json=post_body, timeout=10)
             wx_result = resp.json()
             print(f"推送给 {openid} 结果: {wx_result}")
-            print("【微信返回完整结果】", wx_result)
         except Exception as e:
             print(f"推送 {openid} 发生异常：{str(e)}")
-            if 'resp' in locals():
-                print("返回原始文本：", resp.text)
