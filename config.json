@@ -1,7 +1,7 @@
 {
     "app_id": "wx527b9473371af8fd",
     "app_secret": "3a9dea7c2da6be5b036672b45882f3d5",
-    "template_id": "LJku6sn-IH3nxq9mf1EhwSAQ1oP_Za8PVTDWgTOy_l0",
+    "template_id": "z8swQVPeFOjm8KacT7SJxyTr4YtfrCXbdAlO9wZ4x8k",
     "user": ["ohNC759FgSfc_DqfePQhxPBg1klk", "ohNC7502wcmBzkSGxzxF1vOVuuGg"],
     "province": "广东",
     "city": "广州",
@@ -17,5 +17,6 @@
     "birthday2": "2003-04-14",
     "birthday3": "",
     "tianxing_key": "7e4342d0d8f8d927af149d07be9747a5",
+    "qweather_key": "05b0e524f3f34c07a66ae061dc4c6ff9",
     "astro": "aries"
 }
