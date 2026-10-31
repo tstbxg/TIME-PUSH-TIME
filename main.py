@@ -21,6 +21,9 @@ Whether_health = cfg["Whether_health"]
 Whether_lucky = cfg["Whether_lucky"]
 tianxing_API = cfg["tianxing_API"]
 astro = cfg["astro"]
+# 新增生日读取，如果配置没有就为空
+birthday1 = cfg.get("birthday1", "")
+birthday2 = cfg.get("birthday2", "")
 
 # 365条寄言
 msg_list = [
@@ -498,6 +501,19 @@ def get_love_days(start_date):
     now = datetime.datetime.now()
     return (now - start).days
 
+# 新增：计算生日倒计时
+def get_birthday_left(birth_str):
+    if not birth_str:
+        return ""
+    month,day = birth_str.split("-")
+    now = datetime.datetime.now()
+    this_year = now.year
+    target = datetime.datetime.strptime(f"{this_year}-{month}-{day}","%Y-%m-%d")
+    if target < now:
+        target = datetime.datetime.strptime(f"{this_year+1}-{month}-{day}","%Y-%m-%d")
+    days_left = (target - now).days
+    return f"🎂距离生日还有{days_left}天"
+
 # 天气
 def get_weather(city):
     try:
@@ -511,14 +527,15 @@ def get_weather(city):
         print("天气接口异常", e)
         return "天气获取失败"
 
-# 天行API 彩虹屁/励志/英文/健康/好运/星座
+# 天行API 彩虹屁/励志/英文/健康/好运/星座 【修改：失败返回空字符串，不显示获取失败】
 def get_tianxing(api_key, type_id):
     try:
         url = f"https://api.tianapi.com/{type_id}/index?key={api_key}"
         res = requests.get(url, timeout=10)
-        return res.json()["newslist"][0]["content"]
+        ret_json = res.json()
+        return ret_json["newslist"][0]["content"]
     except Exception:
-        return "获取失败"
+        return ""
 
 # 星座运势
 def get_astro(api_key, astro_name):
@@ -527,7 +544,7 @@ def get_astro(api_key, astro_name):
         res = requests.get(url, timeout=10)
         return res.json()["newslist"][0]["content"]
     except Exception:
-        return "星座运势获取失败"
+        return ""
 
 # 获取微信token
 def get_token(appid, secret):
@@ -539,10 +556,20 @@ def get_token(appid, secret):
         print("获取token失败", e)
         return {}
 
+
 if __name__ == "__main__":
     love_days = get_love_days(love_date)
     random_words = get_random_msg()
     weather_info = get_weather(city)
+
+    # 生日倒计时
+    b1_text = get_birthday_left(birthday1)
+    b2_text = get_birthday_left(birthday2)
+    birthday_all = ""
+    if b1_text:
+        birthday_all += b1_text + " "
+    if b2_text:
+        birthday_all += b2_text
 
     # 按需获取天行内容
     caihongpi = get_tianxing(tianxing_API, "caihongpi") if Whether_caihongpi else ""
@@ -560,7 +587,6 @@ if __name__ == "__main__":
         exit()
 
     push_url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={access_token}"
-
     for openid in user_list:
         post_body = {
             "touser": openid,
@@ -569,7 +595,7 @@ if __name__ == "__main__":
                 "date": {"value": datetime.datetime.now().strftime("%Y-%m-%d")},
                 "weather": {"value": weather_info},
                 "love_day": {"value": f"{love_days}天"},
-                "word": {"value": random_words},
+                "word": {"value": random_words + " " + birthday_all}, #寄言拼接生日倒计时
                 "caihongpi": {"value": caihongpi},
                 "lizhi": {"value": lizhi},
                 "english": {"value": eng},
