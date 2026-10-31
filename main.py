@@ -2,7 +2,6 @@ import json
 import requests
 from datetime import datetime, date
 
-# 读取配置
 with open("config.json","r",encoding="utf-8") as f:
     cfg = json.load(f)
 
@@ -17,33 +16,28 @@ TIANXING_KEY = cfg.get("tianxing_key","")
 QWEATHER_KEY = cfg.get("qweather_key","")
 ASTRO = cfg["astro"]
 
-# 开关
 SWITCH = {
-    "caihongpi": cfg.get("Whether_caihongpi",True),
-    "lizhi": cfg.get("Whether_lizhi",True),
-    "en": cfg.get("Whether_en",True),
-    "tip": cfg.get("Whether_tip",True),
-    "health": cfg.get("Whether_health",True),
-    "lucky": cfg.get("Whether_lucky",True),
-    "star": cfg.get("Whether_star",True),
+    "caihongpi": cfg.get("Whether_caihongpi",False),
+    "lizhi": cfg.get("Whether_lizhi",False),
+    "en": cfg.get("Whether_en",False),
+    "tip": cfg.get("Whether_tip",False),
+    "health": cfg.get("Whether_health",False),
+    "lucky": cfg.get("Whether_lucky",False),
+    "star": cfg.get("Whether_star",False),
 }
-# 两个生日：噜妹、噜噜
 birth1 = cfg.get("birthday1","").strip()
 birth2 = cfg.get("birthday2","").strip()
 
-# 获取access_token
 def get_access_token():
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
     res = requests.get(url,timeout=15).json()
     return res.get("access_token")
 
-# 恋爱天数
 def calc_love_days():
     start = datetime.strptime(LOVE_START,"%Y-%m-%d").date()
     today = date.today()
     return (today - start).days
 
-# 生日倒计时
 def get_birthday_count(birth_str):
     if not birth_str:
         return ""
@@ -60,7 +54,6 @@ def get_weather():
     if not QWEATHER_KEY:
         return ""
     try:
-        # 先拿城市location id
         loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={CITY}&key={QWEATHER_KEY}"
         loc_res = requests.get(loc_url,timeout=12).json()
         if loc_res.get("code") != "200":
@@ -75,7 +68,7 @@ def get_weather():
         pass
     return ""
 
-# 天行彩虹屁
+# 彩虹屁
 def get_caihongpi():
     if not SWITCH["caihongpi"] or not TIANXING_KEY:
         return ""
@@ -83,7 +76,7 @@ def get_caihongpi():
         r = requests.get(f"https://api.tianapi.com/caihongpi/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
             return r["newslist"][0]["content"]
-    except:
+    except Exception:
         pass
     return ""
 
@@ -95,7 +88,7 @@ def get_lizhi():
         r = requests.get(f"https://api.tianapi.com/lzmy/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
             return r["newslist"][0]["content"]
-    except:
+    except Exception:
         pass
     return ""
 
@@ -106,8 +99,8 @@ def get_en():
     try:
         r = requests.get(f"https://api.tianapi.com/english/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return f"{r['newslist'][0]['en']}\n{r['newslist'][0]['zh']}"
-    except:
+            return f"{r['newslist'][0]['en']}."
+    except Exception:
         pass
     return ""
 
@@ -119,7 +112,7 @@ def get_tip():
         r = requests.get(f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&city={CITY}",timeout=12).json()
         if r["code"] == 200:
             return r["newslist"][0]["tip"]
-    except:
+    except Exception:
         pass
     return ""
 
@@ -131,19 +124,19 @@ def get_health():
         r = requests.get(f"https://api.tianapi.com/healthtip/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
             return r["newslist"][0]["content"]
-    except:
+    except Exception:
         pass
     return ""
 
-# 今日好运/幸运数字
+# 今日好运
 def get_lucky():
     if not SWITCH["lucky"] or not TIANXING_KEY:
         return ""
     try:
         r = requests.get(f"https://api.tianapi.com/lucky/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return f"幸运数字：{r['newslist'][0]['luckynumber']}"
-    except:
+            return "今日好运在线"
+    except Exception:
         pass
     return ""
 
@@ -155,14 +148,14 @@ def get_star():
         r = requests.get(f"https://api.tianapi.com/star/index?key={TIANXING_KEY}&astro={ASTRO}",timeout=12).json()
         if r["code"] == 200:
             return r["newslist"][0]["content"]
-    except:
+    except Exception:
         pass
     return ""
 
 def main():
     token = get_access_token()
     if not token:
-        print("获取access_token失败")
+        print("❌ 获取access_token失败")
         return
     today_str = date.today().strftime("%Y-%m-%d")
     love_days = calc_love_days()
@@ -180,7 +173,7 @@ def main():
     payload_data = {
         "date": {"value": today_str},
         "weather": {"value": weather_txt},
-        "love": {"value": f"我们在一起第{love_days}天"},
+        "love": {"value": f"我们在一起{love_days}天"},
         "girl_birth": {"value": girl_birth},
         "boy_birth": {"value": boy_birth},
         "caihong": {"value": caihong},
