@@ -1,249 +1,206 @@
 import json
 import requests
 from datetime import datetime, date
-import os
-os.environ["TZ"] = "Asia/Shanghai"
 
-# 通用安全截断：防止微信因为内容过长直接把整个字段置空（关键！）
-def safe_clip(text, max_len=42):
-    if not isinstance(text, str):
-        text = str(text)
-    if len(text) > max_len:
-        return text[:max_len] + "…"
-    return text
-
-# 励志专用更短截断，解决励志单行省略
-def clip_lizhi(text, max_len=18):
-    return safe_clip(text, max_len)
-
-def clean_birth_str(raw: str):
-    if not raw:
-        return ""
-    s = raw.strip()
-    if s.startswith("r"):
-        s = s[1:]
+# 新增：仅用于励志、健康的截断函数，仅此一处新增
+def cut18(s):
+    if not isinstance(s, str):
+        s = str(s)
+    if len(s) > 18:
+        return s[:18] + "…"
     return s
 
-# 读取配置
-with open("config.json", "r", encoding="utf-8") as f:
+with open("config.json","r",encoding="utf-8") as f:
     cfg = json.load(f)
 
-APP_ID = cfg.get("app_id", "")
-APP_SECRET = cfg.get("app_secret", "")
-TEMPLATE_ID = cfg.get("template_id", "")
-USER_LIST = cfg.get("user", [])
-CITY = cfg.get("city", "广州")
-
-birth1_raw = cfg.get("birthday1", "")
-birth2_raw = cfg.get("birthday2", "")
-birth1 = clean_birth_str(birth1_raw)
-birth2 = clean_birth_str(birth2_raw)
-
-LOVE_START_RAW = cfg.get("love_start")
-if not LOVE_START_RAW or LOVE_START_RAW is None:
-    LOVE_START_RAW = "2021-12-12"
-
-TIANXING_KEY = cfg.get("tianxing_key", "")
-QWEATHER_KEY = cfg.get("qweather_key", "")
-ASTRO = cfg.get("astro", "pisces")
+APP_ID = cfg["app_id"]
+APP_SECRET = cfg["app_secret"]
+TEMPLATE_ID = cfg["template_id"]
+USER_LIST = cfg["user"]
+PROVINCE = cfg["province"]
+CITY = cfg["city"]
+LOVE_START = cfg["love_start"]
+TIANXING_KEY = cfg.get("tianxing_key","")
+QWEATHER_KEY = cfg.get("qweather_key","")
+ASTRO = cfg["astro"]
 
 SWITCH = {
-    "caihongpi": bool(cfg.get("Whether_caihongpi", True)),
-    "lizhi": bool(cfg.get("Whether_lizhi", True)),
-    "en": bool(cfg.get("Whether_en", True)),
-    "tip": bool(cfg.get("Whether_tip", True)),
-    "health": bool(cfg.get("Whether_health", True)),
-    "lucky": bool(cfg.get("Whether_lucky", True)),
-    "star": bool(cfg.get("Whether_star", True)),
+    "caihongpi": cfg.get("Whether_caihongpi",False),
+    "lizhi": cfg.get("Whether_lizhi",False),
+    "en": cfg.get("Whether_en",False),
+    "tip": cfg.get("Whether_tip",False),
+    "health": cfg.get("Whether_health",False),
+    "lucky": cfg.get("Whether_lucky",False),
+    "star": cfg.get("Whether_star",False),
 }
-
+birth1 = cfg.get("birthday1","").strip()
+birth2 = cfg.get("birthday2","").strip()
 
 def get_access_token():
-    try:
-        url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
-        resp = requests.get(url, timeout=15)
-        res = resp.json()
-        return res.get("access_token")
-    except Exception:
-        return None
+    url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
+    res = requests.get(url,timeout=15).json()
+    return res.get("access_token")
 
+def calc_love_days():
+    start = datetime.strptime(LOVE_START,"%Y-%m-%d").date()
+    today = date.today()
+    return (today - start).days
 
-def calc_love_days() -> str:
-    try:
-        start = datetime.strptime(LOVE_START_RAW, "%Y-%m-%d").date()
-        today = date.today()
-        return f"我们在一起{ (today - start).days }天"
-    except Exception:
-        return "恋爱天数计算失败"
-
-
-def get_birthday_count(birth_str) -> str:
+def get_birthday_count(birth_str):
     if not birth_str:
-        return "生日未配置"
-    try:
-        bdt = datetime.strptime(birth_str, "%Y-%m-%d").date()
-        today = date.today()
-        next_birth = date(today.year, bdt.month, bdt.day)
-        if next_birth < today:
-            next_birth = date(today.year + 1, bdt.month, bdt.day)
-        diff = (next_birth - today).days
-        return f"还有{diff}天"
-    except Exception:
-        return "生日计算失败"
+        return ""
+    bdt = datetime.strptime(birth_str,"%Y-%m-%d").date()
+    today = date.today()
+    next_b = date(today.year, bdt.month, bdt.day)
+    if next_b < today:
+        next_b = date(today.year+1, bdt.month, bdt.day)
+    diff = (next_b - today).days
+    return f"还有{diff}天"
 
-
-def get_weather() -> str:
+# 和风天气
+def get_weather():
     if not QWEATHER_KEY:
-        return "未配置天气密钥"
+        return ""
     try:
         loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={CITY}&key={QWEATHER_KEY}"
-        loc_res = requests.get(loc_url, timeout=12).json()
+        loc_res = requests.get(loc_url,timeout=12).json()
         if loc_res.get("code") != "200":
-            return "天气获取失败"
+            return ""
         loc_id = loc_res["location"][0]["id"]
         weather_url = f"https://devapi.qweather.com/v7/weather/now?location={loc_id}&key={QWEATHER_KEY}"
-        w_res = requests.get(weather_url, timeout=12).json()
+        w_res = requests.get(weather_url,timeout=12).json()
         if w_res.get("code") == "200":
             now = w_res["now"]
             return f"{now['text']}，{now['temp']}℃"
     except Exception:
         pass
-    return "天气获取失败"
+    return ""
 
-
-def get_caihongpi() -> str:
+# 彩虹屁
+def get_caihongpi():
     if not SWITCH["caihongpi"] or not TIANXING_KEY:
-        return "愿你日日开心"
+        return ""
     try:
-        r = requests.get(f"https://api.tianapi.com/caihongpi/index?key={TIANXING_KEY}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
+        r = requests.get(f"https://api.tianapi.com/caihongpi/index?key={TIANXING_KEY}",timeout=12).json()
+        if r["code"] == 200:
             return r["newslist"][0]["content"]
     except Exception:
         pass
-    return "愿你日日开心"
+    return ""
 
-
-def get_lizhi() -> str:
+# 励志语录【修改：返回前cut18】
+def get_lizhi():
     if not SWITCH["lizhi"] or not TIANXING_KEY:
-        return "保持热爱奔赴山海"
+        return ""
     try:
-        r = requests.get(f"https://api.tianapi.com/lzjiyan/index?key={TIANXING_KEY}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
-            return r["newslist"][0]["content"]
+        r = requests.get(f"https://api.tianapi.com/lzmy/index?key={TIANXING_KEY}",timeout=12).json()
+        if r["code"] == 200:
+            return cut18(r["newslist"][0]["content"])
     except Exception:
         pass
-    return "保持热爱奔赴山海"
+    return ""
 
-
-def get_en() -> str:
+# 英文句子
+def get_en():
     if not SWITCH["en"] or not TIANXING_KEY:
-        return "Have a nice day."
+        return ""
     try:
-        r = requests.get(f"https://api.tianapi.com/english/index?key={TIANXING_KEY}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
+        r = requests.get(f"https://api.tianapi.com/english/index?key={TIANXING_KEY}",timeout=12).json()
+        if r["code"] == 200:
             return f"{r['newslist'][0]['en']}."
     except Exception:
         pass
-    return "Have a nice day."
+    return ""
 
-
-def get_tip() -> str:
+# 温馨提示
+def get_tip():
     if not SWITCH["tip"] or not TIANXING_KEY:
-        return "好好休息，照顾好自己"
+        return ""
     try:
-        r = requests.get(f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&city={CITY}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
+        r = requests.get(f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&city={CITY}",timeout=12).json()
+        if r["code"] == 200:
             return r["newslist"][0]["tip"]
     except Exception:
         pass
-    return "好好休息，照顾好自己"
+    return ""
 
-
-def get_health() -> str:
+# 健康小知识【修改：返回前cut18】
+def get_health():
     if not SWITCH["health"] or not TIANXING_KEY:
-        return "规律作息，身体健康最重要"
+        return ""
     try:
-        r = requests.get(f"https://api.tianapi.com/healthtip/index?key={TIANXING_KEY}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
+        r = requests.get(f"https://api.tianapi.com/healthtip/index?key={TIANXING_KEY}",timeout=12).json()
+        if r["code"] == 200:
+            return cut18(r["newslist"][0]["content"])
+    except Exception:
+        pass
+    return ""
+
+# 今日好运
+def get_lucky():
+    if not SWITCH["lucky"] or not TIANXING_KEY:
+        return ""
+    try:
+        r = requests.get(f"https://api.tianapi.com/lucky/index?key={TIANXING_KEY}",timeout=12).json()
+        if r["code"] == 200:
+            return "今日好运在线"
+    except Exception:
+        pass
+    return ""
+
+# 星座运势
+def get_star():
+    if not SWITCH["star"] or not TIANXING_KEY:
+        return ""
+    try:
+        r = requests.get(f"https://api.tianapi.com/star/index?key={TIANXING_KEY}&astro={ASTRO}",timeout=12).json()
+        if r["code"] == 200:
             return r["newslist"][0]["content"]
     except Exception:
         pass
-    return "规律作息，身体健康最重要"
-
-
-def get_lucky() -> str:
-    return "今日好运在线"
-
-
-def get_star() -> str:
-    if not SWITCH["star"] or not TIANXING_KEY:
-        return "运势平稳，万事顺心"
-    try:
-        r = requests.get(f"https://api.tianapi.com/star/index?key={TIANXING_KEY}&astro={ASTRO}", timeout=12).json()
-        if r.get("code") == 200 and r.get("newslist"):
-            item = r["newslist"][0]
-            if "content" in item:
-                return item["content"]
-            elif "percent" in item:
-                return f"{item['percent']}%"
-    except Exception:
-        pass
-    return "运势平稳，万事顺心"
-
+    return ""
 
 def main():
     token = get_access_token()
     if not token:
         print("❌ 获取access_token失败")
         return
+    today_str = date.today().strftime("%Y-%m-%d")
+    love_days = calc_love_days()
+    girl_birth = get_birthday_count(birth1)
+    boy_birth = get_birthday_count(birth2)
+    weather_txt = get_weather()
+    caihong = get_caihongpi()
+    lizhi = get_lizhi()
+    en_txt = get_en()
+    tip_txt = get_tip()
+    health_txt = get_health()
+    lucky_txt = get_lucky()
+    star_txt = get_star()
 
-    # 原始内容（API返回原汁原味，不在这里截断）
-    raw_date = date.today().strftime("%Y-%m-%d")
-    raw_weather = get_weather()
-    raw_love = calc_love_days()
-    raw_girl = get_birthday_count(birth1)
-    raw_boy = get_birthday_count(birth2)
-    raw_caihong = get_caihongpi()
-    raw_lizhi = get_lizhi()
-    raw_en = get_en()
-    raw_tip = get_tip()
-    raw_health = get_health()
-    raw_lucky = get_lucky()
-    raw_star = get_star()
-
-    # ✅【只在发给微信这一步做截断！！】
     payload_data = {
-        "date": {"value": safe_clip(raw_date)},
-        "weather": {"value": safe_clip(raw_weather)},
-        "love": {"value": safe_clip(raw_love)},
-        "girl_birth": {"value": safe_clip(raw_girl)},
-        "boy_birth": {"value": safe_clip(raw_boy)},
-        "caihong": {"value": safe_clip(raw_caihong)},
-        "lizhi": {"value": clip_lizhi(raw_lizhi)},
-        "en": {"value": safe_clip(raw_en)},
-        "tip": {"value": safe_clip(raw_tip)},
-        "health": {"value": safe_clip(raw_health)},
-        "lucky": {"value": safe_clip(raw_lucky)},
-        "star": {"value": safe_clip(raw_star)},
+        "date": {"value": today_str},
+        "weather": {"value": weather_txt},
+        "love": {"value": f"我们在一起{love_days}天"},
+        "girl_birth": {"value": girl_birth},
+        "boy_birth": {"value": boy_birth},
+        "caihong": {"value": caihong},
+        "lizhi": {"value": lizhi},
+        "en": {"value": en_txt},
+        "tip": {"value": tip_txt},
+        "health": {"value": health_txt},
+        "lucky": {"value": lucky_txt},
+        "star": {"value": star_txt}
     }
-    print("原始数据打印",{
-        "raw_caihong":raw_caihong,
-        "raw_lizhi":raw_lizhi,
-        "raw_health":raw_health,
-        "raw_star":raw_star
-    })
-    print("发给微信的payload", payload_data)
-
     for openid in USER_LIST:
         url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
-        body = {
+        send_body = {
             "touser": openid,
             "template_id": TEMPLATE_ID,
             "data": payload_data
         }
-        resp = requests.post(url, json=body, timeout=15)
-        print("推送结果：", resp.json())
-
+        res = requests.post(url,json=send_body,timeout=15)
+        print(openid, res.json())
 
 if __name__ == "__main__":
     main()
