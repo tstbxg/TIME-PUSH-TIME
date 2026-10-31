@@ -33,6 +33,186 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-# Open-Meteo 广州实时天气（海外服务器，Action稳定访问，准确实时）
+# WMO天气编码转中文
+weather_code_map = {
+    0: "晴天",
+    1: "晴",
+    2: "少云",
+    3: "阴天",
+    45: "雾",
+    48: "雾凇",
+    51: "毛毛雨",
+    53: "毛毛雨",
+    55: "毛毛雨",
+    61: "小雨",
+    63: "中雨",
+    65: "大雨",
+    80: "阵雨",
+    81: "阵雨",
+    82: "强阵雨",
+    95: "雷暴",
+    96: "雷暴伴冰雹",
+    99: "强雷暴"
+}
+
+# Open-Meteo 广州 23.13,113.27 实时天气+当前温度
 def get_weather():
-    # 广州坐标 23.13,113.27
+    params = {
+        "latitude": 23.13,
+        "longitude": 113.27,
+        "current_weather": "true",
+        "timezone": "Asia/Shanghai"
+    }
+    try:
+        r = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        cw = data["current_weather"]
+        code = cw["weathercode"]
+        temp = round(cw["temperature"])
+        weather_txt = weather_code_map.get(code, "多云")
+        return f"{weather_txt}，{temp}℃"
+    except Exception as e:
+        print("天气接口异常", e)
+        return "天气暂时获取失败，记得照顾好自己"
+
+
+# 彩虹屁
+def get_caihongpi():
+    try:
+        res = requests.get("https://api.shadiao.pro/chp", timeout=10)
+        js = res.json()
+        return js["data"]["text"]
+    except Exception:
+        return "今日也要开开心心"
+
+
+# 励志
+def get_lizhi():
+    try:
+        res = requests.get("https://api.xygeng.cn/one", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "保持热爱，奔赴美好"
+
+
+# 英文句子
+def get_en_sentence():
+    try:
+        res = requests.get("https://api.vvhan.com/api/en", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "Hope everything goes well."
+
+
+# 温馨提示
+def get_tip():
+    try:
+        res = requests.get("https://api.qqsuu.cn/api/dm-tips", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "好好休息，照顾好自己"
+
+
+# 健康小知识
+def get_health():
+    try:
+        res = requests.get("https://api.qqsuu.cn/api/dm-health", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "规律作息，身体健康最重要"
+
+
+# 今日好运
+def get_lucky():
+    try:
+        res = requests.get("https://api.qqsuu.cn/api/dm-lucky", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "今日好运在线"
+
+
+# 星座运势
+def get_star(astro_name):
+    try:
+        res = requests.get(f"https://api.qqsuu.cn/api/dm-star?astro={astro_name}", timeout=10)
+        js = res.json()
+        return js["data"]["content"]
+    except Exception:
+        return "运势平稳，万事顺心"
+
+
+# 生日倒计时
+def calc_birthday(birth_str):
+    if not birth_str:
+        return ""
+    b = datetime.strptime(birth_str, "%Y-%m-%d")
+    today = date.today()
+    next_birth = date(today.year, b.month, b.day)
+    if next_birth < today:
+        next_birth = date(today.year + 1, b.month, b.day)
+    diff = (next_birth - today).days
+    if diff == 0:
+        return "🎂今天生日！生日快乐！"
+    else:
+        return f"还有{diff}天"
+
+
+# 恋爱天数
+def calc_love_day(start_date):
+    start = datetime.strptime(start_date, "%Y-%m-%d").date()
+    today = date.today()
+    return (today - start).days
+
+
+if __name__ == "__main__":
+    token = get_access_token()
+    if not token:
+        print("access_token 获取失败")
+        exit()
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    love_days = calc_love_day(LOVE_START)
+    b1_text = calc_birthday(BIRTHDAY1)
+    b2_text = calc_birthday(BIRTHDAY2)
+    b3_text = calc_birthday(BIRTHDAY3)
+
+    weather_text = get_weather()
+    chp_text = get_caihongpi() if SWITCH_CAIHONGPI else ""
+    lizhi_text = get_lizhi() if SWITCH_LIZHI else ""
+    en_text = get_en_sentence() if SWITCH_EN else ""
+    tip_text = get_tip() if SWITCH_TIP else ""
+    health_text = get_health() if SWITCH_HEALTH else ""
+    lucky_text = get_lucky() if SWITCH_LUCKY else ""
+    star_text = get_star(ASTRO) if SWITCH_STAR else ""
+
+    data = {
+        "date": {"value": today_str},
+        "love_days": {"value": f"我们在一起{love_days}天"},
+        "birthday1": {"value": b1_text},
+        "birthday2": {"value": b2_text},
+        "weather": {"value": weather_text},
+        "caihongpi": {"value": chp_text},
+        "lizhi": {"value": lizhi_text},
+        "en": {"value": en_text},
+        "tip": {"value": tip_text},
+        "health": {"value": health_text},
+        "lucky": {"value": lucky_text},
+        "star": {"value": star_text}
+    }
+
+    for openid in USER_LIST:
+        post_data = {
+            "touser": openid,
+            "template_id": TEMPLATE_ID,
+            "data": data,
+            "topcolor": "#FF6666"
+        }
+        url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
+        resp = requests.post(url, json=post_data, timeout=15)
+        print(openid, resp.json())
