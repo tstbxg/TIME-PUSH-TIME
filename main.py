@@ -4,24 +4,29 @@ import time
 import random
 from datetime import datetime
 
-# 读取配置文件
+# 读取配置
 def load_config():
     with open("config.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-# 获取微信access_token
+# 获取微信token
 def get_access_token(app_id, app_secret):
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={app_id}&secret={app_secret}"
-    res = requests.get(url, timeout=15)
-    data = res.json()
-    if "access_token" in data:
-        return data["access_token"]
-    else:
+    try:
+        res = requests.get(url, timeout=15)
+        data = res.json()
+        if "access_token" in data:
+            return data["access_token"]
         print("获取token失败：", data)
+        return None
+    except Exception as e:
+        print("token请求异常", e)
         return None
 
 # 天行天气
 def get_weather(api_key, province, city):
+    if not api_key:
+        return "未配置天行key"
     try:
         url = f"https://api.tianapi.com/tianqi/index?key={api_key}&province={province}&city={city}"
         res = requests.get(url, timeout=15)
@@ -29,42 +34,126 @@ def get_weather(api_key, province, city):
         if js.get("code") == 200:
             info = js["newslist"][0]
             return f"{info['weather']}，气温{info['low']}~{info['high']}，{info['tips']}"
-        else:
-            return "天气获取失败"
+        return "天气获取失败"
     except Exception as e:
         print("天气异常", e)
         return "天气获取失败"
 
-# 天行星座
-def get_xingzuo(api_key, xz_id):
+# 星座运势
+def get_xingzuo(api_key, astro):
+    if not api_key:
+        return "未配置天行key"
     try:
-        url = f"https://api.tianapi.com/star/index?key={api_key}&astro={xz_id}"
+        url = f"https://api.tianapi.com/star/index?key={api_key}&astro={astro}"
         res = requests.get(url, timeout=15)
         js = res.json()
         if js.get("code") == 200:
             return js["newslist"][0]["content"]
-        else:
-            return "星座运势获取失败"
+        return "星座运势获取失败"
     except Exception as e:
         print("星座异常", e)
         return "星座运势获取失败"
 
-# 计算纪念日天数
-def calc_day(start_date):
+# 彩虹屁
+def get_rainbow(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/caihongpi/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["content"]
+        return "彩虹屁获取失败"
+    except Exception as e:
+        print("彩虹屁异常", e)
+        return "彩虹屁获取失败"
+
+# 励志语录
+def get_motivation(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/lzmy/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["content"]
+        return "励志语录获取失败"
+    except Exception as e:
+        print("励志语录异常", e)
+        return "励志语录获取失败"
+
+# 英文句子
+def get_en_sentence(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/everyday/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["en"]
+        return "英文句子获取失败"
+    except Exception as e:
+        print("英文句子异常", e)
+        return "英文句子获取失败"
+
+# 温馨提示
+def get_tip(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/healthtip/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["content"]
+        return "温馨提示获取失败"
+    except Exception as e:
+        print("温馨提示异常", e)
+        return "温馨提示获取失败"
+
+# 健康小知识
+def get_health(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/health/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["content"]
+        return "健康知识获取失败"
+    except Exception as e:
+        print("健康知识异常", e)
+        return "健康知识获取失败"
+
+# 今日好运
+def get_luck(api_key):
+    if not api_key:
+        return "未配置天行key"
+    try:
+        url = f"https://api.tianapi.com/zhoyun/index?key={api_key}"
+        res = requests.get(url, timeout=15)
+        js = res.json()
+        if js.get("code") == 200:
+            return js["newslist"][0]["content"]
+        return "今日好运获取失败"
+    except Exception as e:
+        print("好运异常", e)
+        return "今日好运获取失败"
+
+# 恋爱天数计算
+def calc_love_days(start_date):
     start = datetime.strptime(start_date, "%Y-%m-%d")
     now = datetime.now()
     delta = (now - start).days
-    return delta
+    return f"{delta}天"
 
-# 计算生日倒计时
-def birthday_countdown(birth_str):
-    birth_str = birth_str.replace("r","")
-    b = datetime.strptime(birth_str, "%Y-%m-%d")
-    now = datetime.now()
-    this_year_birth = datetime(now.year, b.month, b.day)
-    if this_year_birth < now:
-        this_year_birth = datetime(now.year + 1, b.month, b.day)
-    return (this_year_birth - now).days
+# 日期
+def get_today_date():
+    return datetime.now().strftime("%Y-%m-%d")
 
 # 365条不重复寄言库
 message_list = [
@@ -387,8 +476,7 @@ message_list = [
 "和你，岁岁岁岁，年年年年。"
 ]
 
-# 随机选一条寄言
-def get_random_msg():
+def get_random_say():
     return random.choice(message_list)
 
 # 发送模板消息
@@ -400,7 +488,7 @@ def send_msg(access_token, openid, template_id, data):
         "data": data
     }
     res = requests.post(url, json=body, timeout=15)
-    print("发送返回：", res.json())
+    print("微信返回结果：", res.json())
     return res.json()
 
 def main():
@@ -412,38 +500,44 @@ def main():
     province = cfg["province"]
     city = cfg["city"]
     api_key = cfg.get("tianxing_key","")
-    start_date = cfg.get("love_start","2021-12-12")
-    b1 = cfg.get("birthday1","")
-    b2 = cfg.get("birthday2","")
-    b3 = cfg.get("birthday3","")
+    love_start = cfg.get("love_start","2021-12-12")
+    astro_id = cfg.get("astro","libra")
 
-    # 拿数据
+    # 全部字段一一对应模板
+    date_txt = get_today_date()
     weather_txt = get_weather(api_key, province, city)
-    xz_txt = get_xingzuo(api_key, "libra")
-    love_days = calc_day(start_date)
-    say = get_random_msg()
-    bc1 = birthday_countdown(b1) if b1 else "无"
-    bc2 = birthday_countdown(b2) if b2 else "无"
-    bc3 = birthday_countdown(b3) if b3 else "无"
-
-    access_token = get_access_token(app_id, app_secret)
-    if not access_token:
-        print("获取token失败，终止")
-        return
+    love_txt = calc_love_days(love_start)
+    say_txt = get_random_say()
+    rainbow_txt = get_rainbow(api_key)
+    motivation_txt = get_motivation(api_key)
+    en_txt = get_en_sentence(api_key)
+    tip_txt = get_tip(api_key)
+    health_txt = get_health(api_key)
+    luck_txt = get_luck(api_key)
+    star_txt = get_xingzuo(api_key, astro_id)
 
     wx_data = {
+        "date": {"value": date_txt},
         "weather": {"value": weather_txt},
-        "star": {"value": xz_txt},
-        "love_day": {"value": f"{love_days}天"},
-        "b1": {"value": f"{bc1}天"},
-        "b2": {"value": f"{bc2}天"},
-        "b3": {"value": f"{bc3}天"},
-        "say": {"value": say}
+        "love_day": {"value": love_txt},
+        "say": {"value": say_txt},
+        "rainbow": {"value": rainbow_txt},
+        "motivation": {"value": motivation_txt},
+        "en_sentence": {"value": en_txt},
+        "tip": {"value": tip_txt},
+        "health": {"value": health_txt},
+        "luck": {"value": luck_txt},
+        "star": {"value": star_txt}
     }
 
+    token = get_access_token(app_id, app_secret)
+    if not token:
+        print("获取token失败，停止发送")
+        return
+
     for uid in user_list:
-        print(f"正在发给：{uid}")
-        send_msg(access_token, uid, template_id, wx_data)
+        print(f"正在推送给用户：{uid}")
+        send_msg(token, uid, template_id, wx_data)
         time.sleep(1)
 
 if __name__ == "__main__":
