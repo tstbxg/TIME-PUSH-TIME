@@ -1,14 +1,6 @@
-import json
+mport json
 import requests
 from datetime import datetime, date
-
-# 仅增加这个工具函数，除此之外，前面全部是你的原版main(3).py
-def cut18(s):
-    if not isinstance(s, str):
-        s = str(s)
-    if len(s) > 18:
-        return s[:18] + "…"
-    return s
 
 with open("config.json","r",encoding="utf-8") as f:
     cfg = json.load(f)
@@ -95,7 +87,7 @@ def get_lizhi():
     try:
         r = requests.get(f"https://api.tianapi.com/lzmy/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return r["newslist"][0]["content"]
+            return r["newslist"][0]["content"][:18]
     except Exception:
         pass
     return ""
@@ -177,13 +169,6 @@ def main():
     health_txt = get_health()
     lucky_txt = get_lucky()
     star_txt = get_star()
-
-    # =========唯一改动点：在这里对拿到的结果做截断，函数完全不动！=========
-    if lizhi:
-        lizhi = cut18(lizhi)
-    if health_txt:
-        health_txt = cut18(health_txt)
-    # =================================================================
 
     payload_data = {
         "date": {"value": today_str},
