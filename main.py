@@ -10,12 +10,22 @@ APP_ID = cfg["app_id"]
 APP_SECRET = cfg["app_secret"]
 TEMPLATE_ID = cfg["template_id"]
 USER_LIST = cfg["user"]
-PROVINCE = cfg["province"]
 CITY = cfg["city"]
+LOVE_START = cfg["love_start"]
 BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
-# 这里换成和风天气key，config里新增 qweather_key
+BIRTHDAY3 = cfg.get("birthday3", "")
 QWEATHER_KEY = cfg.get("qweather_key", "")
+ASTRO = cfg.get("astro", "aries")
+
+# 功能开关
+SWITCH_CAIHONGPI = cfg.get("Whether_caihongpi", True)
+SWITCH_LIZHI = cfg.get("Whether_lizhi", True)
+SWITCH_EN = cfg.get("Whether_en", True)
+SWITCH_TIP = cfg.get("Whether_tip", True)
+SWITCH_HEALTH = cfg.get("Whether_health", True)
+SWITCH_LUCKY = cfg.get("Whether_lucky", True)
+SWITCH_STAR = cfg.get("Whether_star", True)
 
 
 def get_access_token():
@@ -24,19 +34,12 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-# 和风天气
+# 和风天气 - 直接使用广州固定ID：101280101，跳过城市搜索接口
 def get_weather(qkey, city_name):
     if not qkey:
         return "暂时无法获取天气，记得好好照顾自己"
     try:
-        # 先拿城市id
-        loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={city_name}&key={qkey}"
-        r1 = requests.get(loc_url, timeout=10)
-        j1 = r1.json()
-        if j1.get("code") != "200":
-            return "暂时无法获取天气，记得好好照顾自己"
-        loc_id = j1["location"][0]["id"]
-        # 获取实况天气
+        loc_id = "101280101"
         weather_url = f"https://devapi.qweather.com/v7/weather/now?location={loc_id}&key={qkey}"
         r2 = requests.get(weather_url, timeout=10)
         j2 = r2.json()
@@ -44,12 +47,14 @@ def get_weather(qkey, city_name):
             now = j2["now"]
             return f"{now['text']}，气温{now['temp']}℃，体感{now['feelsLike']}℃"
         else:
+            print("和风返回code:", j2.get("code"), j2.get("message"))
             return "暂时无法获取天气，记得好好照顾自己"
-    except Exception:
+    except Exception as e:
+        print("天气接口异常：", str(e))
         return "暂时无法获取天气，记得好好照顾自己"
 
 
-# 彩虹屁 免费接口
+# 彩虹屁
 def get_caihongpi():
     try:
         res = requests.get("https://api.shadiao.pro/chp", timeout=10)
@@ -59,7 +64,7 @@ def get_caihongpi():
         return "今日也要开开心心"
 
 
-# 励志语录
+# 励志
 def get_lizhi():
     try:
         res = requests.get("https://api.xygeng.cn/one", timeout=10)
@@ -109,19 +114,21 @@ def get_lucky():
         return "今日好运在线"
 
 
-# 星座运势（白羊座aries，你可以自己改）
-def get_star():
+# 星座运势
+def get_star(astro_name):
     try:
-        res = requests.get("https://api.qqsuu.cn/api/dm-star?astro=aries", timeout=10)
+        res = requests.get(f"https://api.qqsuu.cn/api/dm-star?astro={astro_name}", timeout=10)
         js = res.json()
         return js["data"]["content"]
     except Exception:
         return "运势平稳，万事顺心"
 
 
+# 生日倒计时
 def calc_birthday(birth_str):
-    s = birth_str.replace("r", "")
-    b = datetime.strptime(s, "%Y-%m-%d")
+    if not birth_str:
+        return ""
+    b = datetime.strptime(birth_str, "%Y-%m-%d")
     today = date.today()
     next_birth = date(today.year, b.month, b.day)
     if next_birth < today:
@@ -133,8 +140,9 @@ def calc_birthday(birth_str):
         return f"还有{diff}天"
 
 
-def calc_love_day():
-    start = date(2021, 12, 12)
+# 恋爱天数
+def calc_love_day(start_date):
+    start = datetime.strptime(start_date, "%Y-%m-%d").date()
     today = date.today()
     return (today - start).days
 
@@ -142,35 +150,37 @@ def calc_love_day():
 if __name__ == "__main__":
     token = get_access_token()
     if not token:
-        print("获取access_token失败")
+        print("access_token 获取失败")
         exit()
 
     today_str = datetime.now().strftime("%Y-%m-%d")
-    love_days = calc_love_day()
-    b1 = calc_birthday(BIRTHDAY1)
-    b2 = calc_birthday(BIRTHDAY2)
-    weather = get_weather(QWEATHER_KEY, CITY)
-    caihongpi = get_caihongpi()
-    lizhi = get_lizhi()
-    en = get_en_sentence()
-    tip = get_tip()
-    health = get_health()
-    lucky = get_lucky()
-    star = get_star()
+    love_days = calc_love_day(LOVE_START)
+    b1_text = calc_birthday(BIRTHDAY1)
+    b2_text = calc_birthday(BIRTHDAY2)
+    b3_text = calc_birthday(BIRTHDAY3)
+
+    weather_text = get_weather(QWEATHER_KEY, CITY)
+    chp_text = get_caihongpi() if SWITCH_CAIHONGPI else ""
+    lizhi_text = get_lizhi() if SWITCH_LIZHI else ""
+    en_text = get_en_sentence() if SWITCH_EN else ""
+    tip_text = get_tip() if SWITCH_TIP else ""
+    health_text = get_health() if SWITCH_HEALTH else ""
+    lucky_text = get_lucky() if SWITCH_LUCKY else ""
+    star_text = get_star(ASTRO) if SWITCH_STAR else ""
 
     data = {
         "date": {"value": today_str},
         "love_days": {"value": f"我们在一起{love_days}天"},
-        "birthday1": {"value": b1},
-        "birthday2": {"value": b2},
-        "weather": {"value": weather},
-        "caihongpi": {"value": caihongpi},
-        "lizhi": {"value": lizhi},
-        "en": {"value": en},
-        "tip": {"value": tip},
-        "health": {"value": health},
-        "lucky": {"value": lucky},
-        "star": {"value": star}
+        "birthday1": {"value": b1_text},
+        "birthday2": {"value": b2_text},
+        "weather": {"value": weather_text},
+        "caihongpi": {"value": chp_text},
+        "lizhi": {"value": lizhi_text},
+        "en": {"value": en_text},
+        "tip": {"value": tip_text},
+        "health": {"value": health_text},
+        "lucky": {"value": lucky_text},
+        "star": {"value": star_text}
     }
 
     for openid in USER_LIST:
