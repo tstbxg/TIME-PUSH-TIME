@@ -19,13 +19,13 @@ ASTRO = cfg["astro"]
 
 # 开关
 SWITCH = {
-    "caihongpi": cfg.get("Whether_caihongpi",False),
-    "lizhi": cfg.get("Whether_lizhi",False),
-    "en": cfg.get("Whether_en",False),
-    "tip": cfg.get("Whether_tip",False),
-    "health": cfg.get("Whether_health",False),
-    "lucky": cfg.get("Whether_lucky",False),
-    "star": cfg.get("Whether_star",False),
+    "caihongpi": cfg.get("Whether_caihongpi",True),
+    "lizhi": cfg.get("Whether_lizhi",True),
+    "en": cfg.get("Whether_en",True),
+    "tip": cfg.get("Whether_tip",True),
+    "health": cfg.get("Whether_health",True),
+    "lucky": cfg.get("Whether_lucky",True),
+    "star": cfg.get("Whether_star",True),
 }
 # 两个生日：噜妹、噜噜
 birth1 = cfg.get("birthday1","").strip()
