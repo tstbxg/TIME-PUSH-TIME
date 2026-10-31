@@ -266,9 +266,26 @@ tip_backup = "记得好好照顾自己哦"
 health_backup = "多喝温水，早睡早起"
 luck_backup = "今日好运满满✨"
 
+
+def get_birthday_left(birth_date_str):
+    """计算距离下一个生日还有多少天"""
+    if not birth_date_str:
+        return ""
+    birth = datetime.strptime(birth_date_str, "%Y-%m-%d")
+    today = datetime.now()
+    next_birth = datetime(year=today.year, month=birth.month, day=birth.day)
+    if next_birth < today:
+        next_birth = datetime(year=today.year+1, month=birth.month, day=birth.day)
+    days = (next_birth - today).days
+    if days == 0:
+        return "🎂今天生日！生日快乐！"
+    return f"距离生日还有{days}天"
+
+
 def load_config():
     with open("config.json", "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def get_access_token(app_id, app_secret):
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={app_id}&secret={app_secret}"
@@ -282,6 +299,7 @@ def get_access_token(app_id, app_secret):
     except Exception as e:
         print("【token请求异常】", e)
         return None
+
 
 def get_weather(api_key, province, city):
     if not api_key:
@@ -298,6 +316,7 @@ def get_weather(api_key, province, city):
         print("【天气接口异常】", e)
         return "天气获取失败"
 
+
 def get_star(api_key, astro):
     if not api_key:
         return "未配置天行key"
@@ -312,6 +331,7 @@ def get_star(api_key, astro):
         print("【星座接口异常】", e)
         return "星座运势获取失败"
 
+
 def get_caihongpi(api_key):
     if not api_key:
         return random.choice(rainbow_backup)
@@ -324,6 +344,7 @@ def get_caihongpi(api_key):
         return random.choice(rainbow_backup)
     except Exception:
         return random.choice(rainbow_backup)
+
 
 def get_lizhi(api_key):
     if not api_key:
@@ -338,6 +359,7 @@ def get_lizhi(api_key):
     except Exception:
         return random.choice(lizhi_backup)
 
+
 def get_en(api_key):
     if not api_key:
         return random.choice(en_backup)
@@ -350,6 +372,7 @@ def get_en(api_key):
         return random.choice(en_backup)
     except Exception:
         return random.choice(en_backup)
+
 
 def get_tip(api_key):
     if not api_key:
@@ -364,6 +387,7 @@ def get_tip(api_key):
     except Exception:
         return tip_backup
 
+
 def get_health(api_key):
     if not api_key:
         return health_backup
@@ -376,6 +400,7 @@ def get_health(api_key):
         return health_backup
     except Exception:
         return health_backup
+
 
 def get_lucky(api_key):
     if not api_key:
@@ -390,10 +415,12 @@ def get_lucky(api_key):
     except Exception:
         return luck_backup
 
+
 def calc_love_days(start):
     s = datetime.strptime(start, "%Y-%m-%d")
     now = datetime.now()
     return f"{(now - s).days}天"
+
 
 def main():
     cfg = load_config()
@@ -403,6 +430,9 @@ def main():
     msg = random.choice(msg_list)
     weather = get_weather(cfg["tianxing_key"], cfg["province"], cfg["city"])
     star = get_star(cfg["tianxing_key"], cfg["astro"])
+
+    birthday1_text = get_birthday_left(cfg["birthday1"])
+    birthday2_text = get_birthday_left(cfg["birthday2"])
 
     caihongpi = get_caihongpi(cfg["tianxing_key"]) if cfg["Whether_caihongpi"] else ""
     lizhi = get_lizhi(cfg["tianxing_key"]) if cfg["Whether_lizhi"] else ""
@@ -416,6 +446,8 @@ def main():
     print(f"日期：{today}")
     print(f"恋爱天数：{love_day}")
     print(f"寄言：{msg}")
+    print(f"生日1倒计时：{birthday1_text}")
+    print(f"生日2倒计时：{birthday2_text}")
     print(f"天气：{weather}")
     print(f"彩虹屁：{caihongpi}")
     print(f"励志语录：{lizhi}")
@@ -433,6 +465,8 @@ def main():
             "date": {"value": today},
             "love_days": {"value": love_day},
             "say": {"value": msg},
+            "birthday1": {"value": birthday1_text},
+            "birthday2": {"value": birthday2_text},
             "weather": {"value": weather},
             "caihongpi": {"value": caihongpi},
             "lizhi": {"value": lizhi},
@@ -453,5 +487,7 @@ def main():
         resp = requests.post(url, json=data)
         print(f"发给 {openid} 结果：{resp.json()}")
 
+
 if __name__ == "__main__":
     main()
+
