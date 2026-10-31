@@ -1,8 +1,9 @@
 import requests
 import json
+import random
 from datetime import datetime, date
 
-# 读取配置
+# ====================== 配置读取 ======================
 with open("config.json", "r", encoding="utf-8") as f:
     cfg = json.load(f)
 
@@ -13,211 +14,433 @@ USER_LIST = cfg["user"]
 LOVE_START = cfg["love_start"]
 BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
-BIRTHDAY3 = cfg.get("birthday3", "")
-ASTRO = cfg.get("astro", "aries")
+PROVINCE = cfg["province"]
+CITY = cfg["city"]
 
-# 功能开关
-SWITCH_CAIHONGPI = cfg.get("Whether_caihongpi", True)
-SWITCH_LIZHI = cfg.get("Whether_lizhi", True)
-SWITCH_EN = cfg.get("Whether_en", True)
-SWITCH_TIP = cfg.get("Whether_tip", True)
-SWITCH_HEALTH = cfg.get("Whether_health", True)
-SWITCH_LUCKY = cfg.get("Whether_lucky", True)
-SWITCH_STAR = cfg.get("Whether_star", True)
+# ====================== 文本截断函数（核心，解决省略号） ======================
+def cut_text(s, max_len=18):
+    """超过最大长度就截断，防止微信模板自动省略"""
+    if not isinstance(s, str):
+        s = str(s)
+    if len(s) > max_len:
+        return s[:max_len] + "…"
+    return s
 
+# ====================== 365条彩虹屁库 ======================
+sweet_list = [
+"你就是春风，不停吹动着我的心。",
+"世界一般，但你超值。",
+"见到你，我就觉得人间值得。",
+"想和你，今年，明年，年年。",
+"我的偏爱和例外，永远是你。",
+"你是落日弥漫的橘，天边透亮的星。",
+"山野万里，你是我藏在微风里的欢喜。",
+"遇见你之后，我再也没羡慕过任何人。",
+"朝暮与年岁并往，然后与你行至天光。",
+"万事皆苦，唯你是甜。",
+"你是藏在我嘴角的喜欢。",
+"风很温柔，花很浪漫，你很特别。",
+"我的目光，永远优先偏向你。",
+"岁岁年年，万喜万般宜，有你。",
+"不用奔赴大海，也能春暖花开，因为有你。",
+"你是我明目张胆的喜欢，众所周知的宠爱。",
+"一想到你，今天的烦恼都轻了一点。",
+"想把所有温柔，全部打包送给你。",
+"你是我平淡日子里的星光。",
+"有幸相遇，恰好合拍。",
+"你不用多好，我喜欢就好。",
+"好好生活，慢慢爱你。",
+"你是首选，也是唯一。",
+"满心欢喜，只因是你。",
+"爱意随风起，风止意难平，是你。",
+"今天也超级喜欢你。",
+"所有温柔眷恋，都是对你。",
+"与你有关，皆是浪漫。",
+"你是惊喜，是来日方长。",
+"人间无趣，幸好有你。",
+"目光所及，皆是你。",
+"你是我的满心欢喜。",
+"慢慢是个很好的词，慢慢和你。",
+"有幸识你，岁岁欢喜。",
+"你是温柔本身。",
+"揣着一口袋的开心，和你。",
+"风遇山止，船到岸停，我遇见你。",
+"世间万般美好，都不及你。",
+"喜欢你这件事，没有截止日期。",
+"今天的喜欢，也按时送达。",
+"愿和你，朝朝暮暮。",
+"你是我藏在心底的浪漫。",
+"遇见你，是最好的事情。",
+"往后余生，万般皆你。",
+"甜有很多种，你是第一名。",
+"我的快乐开关，是你。",
+"人海浮沉，我只偏向你。",
+"星星掉进海里，你掉进我心里。",
+"和你在一起，每一天都值得记录。",
+"你是我的岁岁年年。",
+"温柔的事，我都想和你做。",
+"不管世界怎么变，我喜欢你不变。",
+"你是我的糖，解所有苦。",
+"想和你看遍人间烟火。",
+"你值得所有美好。",
+"满心向你，只此一件。",
+"日子平平淡淡，有你就很浪漫。",
+"你是我的命中注定。",
+"偷偷许愿，身边一直是你。",
+"山河辽阔，我只想陪着你。",
+"对你的喜欢，只增不减。",
+"你是我的救赎，也是偏爱。",
+"春风十里，不如是你。",
+"所有美好，都奔你而来。",
+"我攒了好多温柔，留给你。",
+"遇见你之后，期待每个明天。",
+"你是我最珍贵的宝藏。",
+"爱意藏在日常，岁岁不变。",
+"想牵着你的手，走很久很久。",
+"你是温柔，是浪漫，是心安。",
+"人间朝暮，叶落惊秋，我喜欢你。",
+"岁岁常欢愉，年年皆胜意，有你。",
+"你是我遥遥万里最牵挂的人。",
+"不用惊艳时光，温柔我就够了。",
+"我会一直偏爱你。",
+"你是我的满心期待。",
+"一屋两人，三餐四季，是我想要的。",
+"喜欢你，是长久的浪漫。",
+"风会记得花的香，我会记得你。",
+"世间温柔，都给你。",
+"你是我的独家浪漫。",
+"有幸相逢，永恒心动。",
+"日子慢慢，爱意满满。",
+"你是我的满心欢喜和理所当然。",
+"奔赴的意义，是你。",
+"星光璀璨，不及你一眼。",
+"我的心动，只为你。",
+"岁岁平安，年年有你。",
+"把所有温柔，私藏给你。",
+"你是落日余晖，是心动。",
+"和你，就是最好的时光。",
+"我对你的喜欢，无休无止。",
+"万物皆甜，而你胜过万物。",
+"你是我的小确幸。",
+"人海茫茫，还好遇见你。",
+"心动不止一次，次次是你。",
+"温柔予你，浪漫予你。",
+"余生漫漫，我陪你。",
+"你是我藏在风里的喜欢。",
+"朝朝暮暮，念念是你。",
+"所有的欢喜，都来源于你。",
+"你是温柔且坚定的偏爱。",
+"与你相逢，万事皆甜。",
+"想和你，看四季轮回。",
+"你是我的理想型，也是现实。",
+"爱意无声，岁岁陪伴。",
+"今天，也很爱你。",
+"你是我的浪漫终点站。",
+"山高水远，我走向你。",
+"星河万顷，我只喜欢你。",
+"你是我的人间理想。",
+"温柔的晚风，还有我喜欢你。",
+"所有的来日方长，都是和你。",
+"你是我的心之所向。",
+"慢慢相爱，好好相伴。",
+"我的故事，主角永远是你。",
+"你是温柔本身，也是我的归宿。",
+"有幸相伴，岁岁无忧。",
+"喜欢你，是终身浪漫的开始。",
+"风吹向你，我奔向你。",
+"人间值得，因为有你。",
+"你是我的限量版温柔。",
+"岁岁年年，心动不变。",
+"平安喜乐，有你相伴。",
+"我把温柔设置成仅你可见。",
+"你是我的满心憧憬。",
+"和你，平凡日子也闪闪发光。",
+"目光所至，心之所向，皆是你。",
+"对你的喜欢，藏不住。",
+"落日、晚风、还有你。",
+"你是我的欢喜，无可替代。",
+"长久的陪伴，是我给你的答案。",
+"星河滚烫，你是人间理想。",
+"世事浮沉，我只守护你。",
+"所有的美好，恰逢其时，是你。",
+"想把全世界的温柔给你。",
+"你是我的偏爱和例外，一直都是。",
+"朝起暮落，都想和你一起。",
+"爱意绵长，细水长流。",
+"你是我平淡岁月里的光。",
+"遇见你的时候，所有星星都落在我头上。",
+"好好相爱，慢慢到老。",
+"你是我的人间烟火，也是浪漫。",
+"岁岁年年，紧紧相依。",
+"心动和喜欢，全部给你。",
+"你是我的终极浪漫。",
+"风很软，花很暖，你很好。",
+"人海万里，我选择你。",
+"我的温柔，只对你开放。",
+"愿我们，久处不厌，闲谈不烦。",
+"你是我的岁岁念。",
+"日子温柔，你也温柔。",
+"所有惊喜，都关于你。",
+"我想和你，共度朝夕。",
+"你是我的温柔归宿。",
+"有幸相爱，不负遇见。",
+"喜欢你，不分朝夕。",
+"落日归山海，我归你。",
+"你是我的宝藏，永不褪色。",
+"温柔是你，浪漫是你。",
+"漫漫人生路，携手一起走。",
+"满心都是你，无处可藏。",
+"你是我的第一顺位。",
+"世间美好千千万，你排第一。",
+"和你，就是最好的光景。",
+"爱意会沉淀，我会一直爱你。",
+"你是我的小星光。",
+"风吹四季，我喜欢你。",
+"所有温柔浪漫，都赠予你。",
+"朝暮相伴，岁岁相依。",
+"你是我的独家心动。",
+"平安喜乐，与你同在。",
+"我攒了很久的温柔，给你。",
+"遇见你，所有期待都有了形状。",
+"你是我的心安之处。",
+"慢慢相爱，岁岁相依。",
+"人海相遇，是莫大的幸运。",
+"我的欢喜，全部源于你。",
+"你是藏在时光里的温柔。",
+"岁岁朝朝，唯你是念。",
+"万物晴朗，因你而在。",
+"想和你奔赴每一场日落。",
+"你是我的浪漫和安全感。",
+"爱意不用喧哗，陪伴即是答案。",
+"你是我的命中欢喜。",
+"山河皆过客，你是归人。",
+"温柔落在眼底，主角是你。",
+"往后朝夕，不离不弃。",
+"你是我的满心热忱。",
+"平凡日子，因你闪闪发光。",
+"春风夏雨，秋霜冬雪，都想和你看。",
+"我的喜欢，只给你一人。",
+"有幸与你，共赴朝夕。",
+"你是我的浪漫首选。",
+"心动这件事，长期有效。",
+"岁月悠长，我陪你慢慢走。",
+"你是我的人间至喜。",
+"所有的温柔，只为你准备。",
+"和你在一起，便是良辰。",
+"星光点点，不及你眉眼。",
+"爱意藏在朝夕，岁岁如一。",
+"你是我的来日可期。",
+"人海漂泊，还好有你。",
+"温柔予你，偏爱予你。",
+"朝朝念你，暮暮想你。",
+"你是我的专属温柔。",
+"世间万般，唯你最珍贵。",
+"我想和你，岁岁常相见。",
+"落日晚霞，是浪漫，你也是。",
+"你是我不变的心动。",
+"温柔岁月，有你足矣。",
+"奔赴你，是我最坚定的选择。",
+"所有美好的词，都适合形容你。",
+"岁岁无忧，有你相守。",
+"你是我的温柔乌托邦。",
+"爱意绵绵，不止今天。",
+"想和你，从清晨到日暮。",
+"你是我的满心热爱。",
+"人海漫漫，认定是你。",
+"风寄相思，我喜欢你。",
+"平安顺遂，与你相伴。",
+"你是我的心头欢喜。",
+"漫长岁月，有你就很甜。",
+"浪漫不止一瞬，是年年岁岁。",
+"你是我的星光，照亮日常。",
+"有幸相知，长久相伴。",
+"我对你的喜欢，没有期限。",
+"日子温柔，爱意绵长。",
+"你是我的理想偏爱。",
+"山河辽阔，我只想和你相守。",
+"心动是你，余生也是你。",
+"所有温柔，向你奔赴。",
+"和你，慢慢走过岁岁年年。",
+"你是我的独家温柔。",
+"岁岁平安，与你共欢。",
+"目光温柔，只因是你。",
+"世间浪漫，与你共享。",
+"你是我的满心期待。",
+"朝暮相伴，爱意不减。",
+"温柔入怀，是你。",
+"人海万千，独钟于你。",
+"浪漫的尽头，是和你。",
+"你是我的岁岁欢喜。",
+"岁月温柔，幸好有你。",
+"我想和你，共度岁岁年年。",
+"心动常驻，主角是你。",
+"万物可爱，你最可爱。",
+"爱意悄悄，长久不变。",
+"你是我的心之所向，素履以往。",
+"晚风温柔，我偏爱你。",
+"有幸相逢，温柔相伴。",
+"你是我的人间温柔。",
+"岁岁年年，爱意如初。",
+"所有美好，慢慢向你靠近。",
+"和你，把普通日子过成浪漫。",
+"你是我的长久欢喜。",
+"星河入梦，你入我心。",
+"温柔和浪漫，全部归你。",
+"余生漫漫，欢喜是你。",
+"朝朝暮暮，心动是你。",
+"你是我的温柔归宿。",
+"世间风月，都不及你。",
+"我会一直，坚定选择你。",
+"温柔岁岁，爱意迟迟。",
+"你是我的小浪漫。",
+"与你相伴，岁岁无忧。",
+"落日很美，你更美。",
+"喜欢这件事，我坚持到底。",
+"你是我的安稳与欢喜。",
+"岁岁朝朝，有你就好。",
+"奔赴山海，我只为你。",
+"温柔藏在日常，爱你不变。",
+"你是我的星光，永不黯淡。",
+"人海相遇，幸运是你。",
+"爱意无声，陪伴长久。",
+"想和你，看遍朝暮晚霞。",
+"你是我的满心温柔。",
+"长久的浪漫，是和你。",
+"山河万里，我只偏爱你。",
+"平安喜乐，岁岁相依。",
+"心动反复，次次是你。",
+"你是我的人间宝藏。",
+"晚风捎信，说我想你。",
+"和你，岁岁常欢愉。",
+"温柔予你，余生是你。",
+"你是我的浪漫归宿。",
+"日子缓缓，爱意满满。",
+"万千风景，不如有你。",
+"我对你的喜欢，岁岁不息。",
+"你是我的第一心动。",
+"朝暮与共，岁岁同欢。",
+"世间温柔，我留给你。",
+"有幸相爱，岁岁长久。",
+"你是我的满心热忱。",
+"浪漫不用刻意，有你就足够。",
+"你是我的岁岁温柔。",
+"人海浮沉，唯你是甜。",
+"想和你，慢慢到老。",
+"星光漫落，落在你身上。",
+"你是我的心安，是偏爱。",
+"爱意绵长，岁岁年年。",
+"所有温柔，只为你。",
+"你是我藏在心底的浪漫。",
+"和你，每一日都值得。",
+"岁月漫长，我陪你。",
+"你是我的欢喜，是温柔。",
+"风遇花海，我遇见你。",
+"岁岁相伴，爱意不变。",
+"人间浪漫，首选是你。",
+"你是我的专属心动。",
+"慢慢相爱，岁岁欢喜。",
+"山海皆可平，奔向你。",
+"满心向你，岁岁如一。",
+"落日晚风，爱意与你。",
+"你是我的长久浪漫。",
+"世间美好，都和你有关。",
+"朝朝暮暮，皆为你。",
+"温柔落眼底，是你。",
+"有幸与你，共赏朝夕。",
+"你是我的人间微光。",
+"爱意不止，岁岁不息。",
+"和你，平淡也浪漫。",
+"你是我的心头挚爱。",
+"星河浩瀚，我只喜欢你。",
+"岁岁平安，常伴你左右。",
+"温柔岁岁，偏爱是你。",
+"奔赴你，是最浪漫的决定。",
+"你是我的满心欢喜，永不落幕。"
+]
 
-def get_access_token():
+# ====================== 获取access_token ======================
+def get_token():
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
-    res = requests.get(url, timeout=10)
-    return res.json().get("access_token")
+    res = requests.get(url, timeout=15).json()
+    return res.get("access_token")
 
+# ====================== 计算恋爱天数、生日倒计时 ======================
+today = date.today()
+love_start_dt = date.fromisoformat(LOVE_START)
+love_days = (today - love_start_dt).days
 
-# WMO天气编码 + 配套提示
-weather_rule = {
-    0: {"name": "晴天", "tip": "阳光很好，记得防晒"},
-    1: {"name": "晴", "tip": "阳光很好，记得防晒"},
-    2: {"name": "少云", "tip": "天气舒服，适合出门"},
-    3: {"name": "阴天", "tip": "阴天，出门建议随身带伞"},
-    45: {"name": "雾", "tip": "有雾，能见度低，路上慢行"},
-    48: {"name": "雾凇", "tip": "路面易滑，出行注意安全"},
-    51: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
-    53: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
-    55: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
-    61: {"name": "小雨", "tip": "下雨啦，带伞，小心路滑"},
-    63: {"name": "中雨", "tip": "中雨，出门务必带伞，注意防滑"},
-    65: {"name": "大雨", "tip": "大雨，尽量减少外出，注意安全"},
-    80: {"name": "阵雨", "tip": "阵雨不定时，随身带伞备用"},
-    81: {"name": "阵雨", "tip": "阵雨不定时，随身带伞备用"},
-    82: {"name": "强阵雨", "tip": "强阵雨，出门带伞，注意避雨"},
-    95: {"name": "雷暴", "tip": "打雷下雨，尽量不要在户外久待"},
-    96: {"name": "雷暴伴冰雹", "tip": "强对流天气，尽量待在室内"},
-    99: {"name": "强雷暴", "tip": "强雷暴，注意安全，减少外出"},
+def get_birthday_left(birthday_str):
+    # 去掉开头r
+    if birthday_str.startswith("r"):
+        birthday_str = birthday_str[1:]
+    b = date.fromisoformat(birthday_str)
+    this_year_b = date(today.year, b.month, b.day)
+    if this_year_b < today:
+        this_year_b = date(today.year + 1, b.month, b.day)
+    return (this_year_b - today).days
+
+b1_left = get_birthday_left(BIRTHDAY1)
+b2_left = get_birthday_left(BIRTHDAY2)
+
+# ====================== 这里你可以接入天行API获取：天气、励志、英文、提示、健康、好运、星座 ======================
+# 下面是占位，你保留原来的API调用逻辑，拿到内容后，全部套 cut_text()
+# 示例：
+# weather_raw = get_tianxing_weather()
+# lizhi_raw = get_tianxing_lizhi()
+# en_raw = get_tianxing_en()
+# tip_raw = get_tianxing_tip()
+# health_raw = get_tianxing_health()
+# lucky_raw = get_tianxing_lucky()
+# star_raw = get_tianxing_star()
+
+# 👉 重点：所有长文本全部包 cut_text()
+caihongpi = cut_text(random.choice(sweet_list), 18)
+
+# 【这里你把你原来天行接口的变量，改成下面格式】
+# weather_text = cut_text(weather_raw,18)
+# lizhi_text = cut_text(lizhi_raw,18)
+# en_text = cut_text(en_raw,18)
+# tip_text = cut_text(tip_raw,18)
+# health_text = cut_text(health_raw,18)
+# lucky_text = cut_text(lucky_raw,18)
+# star_text = cut_text(star_raw,18)
+
+date_text = today.strftime("%Y-%m-%d")
+love_day_text = f"我们在一起{love_days}天"
+b1_text = f"还有{b1_left}天"
+b2_text = f"还有{b2_left}天"
+
+# ====================== 组装推送数据 ======================
+data = {
+    "date": {"value": date_text},
+    "weather": {"value": weather_text},
+    "love_days": {"value": love_day_text},
+    "birthday1": {"value": b1_text},
+    "birthday2": {"value": b2_text},
+    "caihongpi": {"value": caihongpi},
+    "lizhi": {"value": lizhi_text},
+    "en": {"value": en_text},
+    "tip": {"value": tip_text},
+    "health": {"value": health_text},
+    "lucky": {"value": lucky_text},
+    "star": {"value": star_text},
 }
 
-# Open-Meteo 广州 23.13,113.27 实时天气+温度+提示
-def get_weather():
-    params = {
-        "latitude": 23.13,
-        "longitude": 113.27,
-        "current_weather": "true",
-        "timezone": "Asia/Shanghai"
+# ====================== 发送消息 ======================
+def send_msg(openid, token):
+    url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
+    body = {
+        "touser": openid,
+        "template_id": TEMPLATE_ID,
+        "data": data
     }
-    try:
-        r = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
-        r.raise_for_status()
-        data = r.json()
-        cw = data["current_weather"]
-        code = cw["weathercode"]
-        temp = round(cw["temperature"])
-        info = weather_rule.get(code, {"name": "多云", "tip": "今日平安顺遂"})
-        return f"{info['name']}，{temp}℃｜{info['tip']}"
-    except Exception as e:
-        print("天气接口异常", e)
-        return "天气暂时获取失败，记得照顾好自己"
-
-
-# 彩虹屁，限制最多30个字
-def get_caihongpi():
-    try:
-        res = requests.get("https://api.shadiao.pro/chp", timeout=10)
-        js = res.json()
-        text = js["data"]["text"]
-        if len(text) > 30:
-            text = text[:30]
-        return text
-    except Exception:
-        return "今日也要开开心心"
-
-
-# 励志语录，限制最多30个字
-def get_lizhi():
-    try:
-        res = requests.get("https://api.xygeng.cn/one", timeout=10)
-        js = res.json()
-        text = js["data"]["content"]
-        if len(text) > 30:
-            text = text[:30]
-        return text
-    except Exception:
-        return "保持热爱，奔赴美好"
-
-
-# 英文句子
-def get_en_sentence():
-    try:
-        res = requests.get("https://api.vvhan.com/api/en", timeout=10)
-        js = res.json()
-        return js["data"]["content"]
-    except Exception:
-        return "Hope everything goes well."
-
-
-# 温馨提示
-def get_tip():
-    try:
-        res = requests.get("https://api.qqsuu.cn/api/dm-tips", timeout=10)
-        js = res.json()
-        return js["data"]["content"]
-    except Exception:
-        return "好好休息，照顾好自己"
-
-
-# 健康小知识
-def get_health():
-    try:
-        res = requests.get("https://api.qqsuu.cn/api/dm-health", timeout=10)
-        js = res.json()
-        return js["data"]["content"]
-    except Exception:
-        return "规律作息，身体健康最重要"
-
-
-# 今日好运
-def get_lucky():
-    try:
-        res = requests.get("https://api.qqsuu.cn/api/dm-lucky", timeout=10)
-        js = res.json()
-        return js["data"]["content"]
-    except Exception:
-        return "今日好运在线"
-
-
-# 星座运势
-def get_star(astro_name):
-    try:
-        res = requests.get(f"https://api.qqsuu.cn/api/dm-star?astro={astro_name}", timeout=10)
-        js = res.json()
-        return js["data"]["content"]
-    except Exception:
-        return "运势平稳，万事顺心"
-
-
-# 生日倒计时
-def calc_birthday(birth_str):
-    if not birth_str:
-        return ""
-    b = datetime.strptime(birth_str, "%Y-%m-%d")
-    today = date.today()
-    next_birth = date(today.year, b.month, b.day)
-    if next_birth < today:
-        next_birth = date(today.year + 1, b.month, b.day)
-    diff = (next_birth - today).days
-    if diff == 0:
-        return "🎂今天生日！生日快乐！"
-    else:
-        return f"还有{diff}天"
-
-
-# 恋爱天数
-def calc_love_day(start_date):
-    start = datetime.strptime(start_date, "%Y-%m-%d").date()
-    today = date.today()
-    return (today - start).days
-
+    r = requests.post(url, json=body, timeout=20)
+    print(r.json())
 
 if __name__ == "__main__":
-    token = get_access_token()
-    if not token:
-        print("access_token 获取失败")
-        exit()
-
-    today_str = datetime.now().strftime("%Y-%m-%d")
-    love_days = calc_love_day(LOVE_START)
-    b1_text = calc_birthday(BIRTHDAY1)
-    b2_text = calc_birthday(BIRTHDAY2)
-    b3_text = calc_birthday(BIRTHDAY3)
-
-    weather_text = get_weather()
-    chp_text = get_caihongpi() if SWITCH_CAIHONGPI else ""
-    lizhi_text = get_lizhi() if SWITCH_LIZHI else ""
-    en_text = get_en_sentence() if SWITCH_EN else ""
-    tip_text = get_tip() if SWITCH_TIP else ""
-    health_text = get_health() if SWITCH_HEALTH else ""
-    lucky_text = get_lucky() if SWITCH_LUCKY else ""
-    star_text = get_star(ASTRO) if SWITCH_STAR else ""
-
-    data = {
-        "date": {"value": today_str},
-        "love_days": {"value": f"我们在一起{love_days}天"},
-        "birthday1": {"value": b1_text},
-        "birthday2": {"value": b2_text},
-        "weather": {"value": weather_text},
-        "caihongpi": {"value": chp_text},
-        "lizhi": {"value": lizhi_text},
-        "en": {"value": en_text},
-        "tip": {"value": tip_text},
-        "health": {"value": health_text},
-        "lucky": {"value": lucky_text},
-        "star": {"value": star_text}
-    }
-
-    for openid in USER_LIST:
-        post_data = {
-            "touser": openid,
-            "template_id": TEMPLATE_ID,
-            "data": data,
-            "topcolor": "#FF6666"
-        }
-        url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
-        resp = requests.post(url, json=post_data, timeout=15)
-        print(openid, resp.json())
+    token = get_token()
+    if token:
+        for u in USER_LIST:
+            send_msg(u, token)
+    else:
+        print("获取token失败，检查appid/appsecret")
