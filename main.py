@@ -1,9 +1,13 @@
 import json
 import requests
 from datetime import datetime, date
+import os
 
-# 统一截断函数：max_len=18，防止微信模板自动省略
-def cut_max(text, max_len=18):
+# 时区
+os.environ["TZ"] = "Asia/Shanghai"
+
+# 只给励志用的截断函数，其他内容不动
+def cut_lizhi(text, max_len=18):
     if not isinstance(text, str):
         text = str(text)
     if len(text) > max_len:
@@ -57,15 +61,15 @@ def get_birthday_count(birth_str):
     diff = (next_b - today).days
     return f"还有{diff}天"
 
-# 和风天气
+# 和风天气（原样，兜底文案）
 def get_weather():
     if not QWEATHER_KEY:
-        return ""
+        return "天气获取失败"
     try:
         loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={CITY}&key={QWEATHER_KEY}"
         loc_res = requests.get(loc_url,timeout=12).json()
         if loc_res.get("code") != "200":
-            return ""
+            return "天气获取失败"
         loc_id = loc_res["location"][0]["id"]
         weather_url = f"https://devapi.qweather.com/v7/weather/now?location={loc_id}&key={QWEATHER_KEY}"
         w_res = requests.get(weather_url,timeout=12).json()
@@ -74,83 +78,83 @@ def get_weather():
             return f"{now['text']}，{now['temp']}℃"
     except Exception:
         pass
-    return ""
+    return "天气获取失败"
 
-# 彩虹屁
+# 彩虹屁（不截断，兜底）
 def get_caihongpi():
     if not SWITCH["caihongpi"] or not TIANXING_KEY:
-        return ""
+        return "愿你今日万事顺心"
     try:
         r = requests.get(f"https://api.tianapi.com/caihongpi/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(r["newslist"][0]["content"])
+            return r["newslist"][0]["content"]
     except Exception:
         pass
-    return ""
+    return "愿你今日万事顺心"
 
-# 励志语录（lzjiyan励志吉言，适配你账号接口，输出自动18字截断）
+# ✅励志吉言：单独做18字截断，其他不动
 def get_lizhi():
     if not SWITCH["lizhi"] or not TIANXING_KEY:
-        return ""
+        return "保持热爱奔赴山海"
     try:
         r = requests.get(f"https://api.tianapi.com/lzjiyan/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(r["newslist"][0]["content"])
+            return cut_lizhi(r["newslist"][0]["content"])
     except Exception:
         pass
-    return ""
+    return "保持热爱奔赴山海"
 
-# 英文句子
+# 英文句子（原样，兜底）
 def get_en():
     if not SWITCH["en"] or not TIANXING_KEY:
-        return ""
+        return "Have a nice day."
     try:
         r = requests.get(f"https://api.tianapi.com/english/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(f"{r['newslist'][0]['en']}.")
+            return f"{r['newslist'][0]['en']}."
     except Exception:
         pass
-    return ""
+    return "Have a nice day."
 
-# 温馨提示
+# 温馨提示（原样，兜底）
 def get_tip():
     if not SWITCH["tip"] or not TIANXING_KEY:
-        return ""
+        return "好好休息，照顾好自己"
     try:
         r = requests.get(f"https://api.tianapi.com/tianqi/index?key={TIANXING_KEY}&city={CITY}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(r["newslist"][0]["tip"])
+            return r["newslist"][0]["tip"]
     except Exception:
         pass
-    return ""
+    return "好好休息，照顾好自己"
 
-# 健康小知识
+# 健康小知识（原样，兜底）
 def get_health():
     if not SWITCH["health"] or not TIANXING_KEY:
-        return ""
+        return "规律作息，身体健康最重要"
     try:
         r = requests.get(f"https://api.tianapi.com/healthtip/index?key={TIANXING_KEY}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(r["newslist"][0]["content"])
+            return r["newslist"][0]["content"]
     except Exception:
         pass
-    return ""
+    return "规律作息，身体健康最重要"
 
 # 今日好运
 def get_lucky():
     return "今日好运在线"
 
-# 星座运势（同样18字截断，防止省略）
+# 星座运势（原样，兜底）
 def get_star():
     if not SWITCH["star"] or not TIANXING_KEY:
-        return ""
+        return "运势平稳，万事顺心"
     try:
         r = requests.get(f"https://api.tianapi.com/star/index?key={TIANXING_KEY}&astro={ASTRO}",timeout=12).json()
         if r["code"] == 200:
-            return cut_max(r["newslist"][0]["content"])
+            return r["newslist"][0]["content"]
     except Exception:
         pass
-    return ""
+    return "运势平稳，万事顺心"
 
 def main():
     token = get_access_token()
