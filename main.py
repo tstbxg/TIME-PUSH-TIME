@@ -33,38 +33,72 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-# 免费无key天气接口（适配GitHub海外机器，广州）
-def get_weather(city_name):
+# WMO天气编码转中文
+weather_code_map = {
+    0: "晴天",
+    1: "晴",
+    2: "少云",
+    3: "阴天",
+    45: "雾",
+    48: "雾凇",
+    51: "毛毛雨",
+    53: "毛毛雨",
+    55: "毛毛雨",
+    61: "小雨",
+    63: "中雨",
+    65: "大雨",
+    80: "阵雨",
+    81: "阵雨",
+    82: "强阵雨",
+    95: "雷暴",
+    96: "雷暴伴冰雹",
+    99: "强雷暴"
+}
+
+# Open-Meteo 广州 23.13,113.27 实时天气+当前温度
+def get_weather():
+    params = {
+        "latitude": 23.13,
+        "longitude": 113.27,
+        "current_weather": "true",
+        "timezone": "Asia/Shanghai"
+    }
     try:
-        url = "https://api.vvhan.com/api/weather?city=广州"
-        r = requests.get(url, timeout=12)
-        j = r.json()
-        if j.get("success"):
-            info = j["data"]
-            return f"{info['type']}，气温{info['low']}~{info['high']}"
-        else:
-            return "天气暂时获取失败，记得照顾好自己"
+        r = requests.get("https://api.open-meteo.com/v1/forecast", params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+        cw = data["current_weather"]
+        code = cw["weathercode"]
+        temp = round(cw["temperature"])
+        weather_txt = weather_code_map.get(code, "多云")
+        return f"{weather_txt}，{temp}℃"
     except Exception as e:
-        print("天气接口异常：", str(e))
+        print("天气接口异常", e)
         return "天气暂时获取失败，记得照顾好自己"
 
 
-# 彩虹屁
+# 彩虹屁，限制最多45个字，防止微信截断
 def get_caihongpi():
     try:
         res = requests.get("https://api.shadiao.pro/chp", timeout=10)
         js = res.json()
-        return js["data"]["text"]
+        text = js["data"]["text"]
+        if len(text) > 45:
+            text = text[:45]
+        return text
     except Exception:
         return "今日也要开开心心"
 
 
-# 励志
+# 励志语录，限制最多45个字
 def get_lizhi():
     try:
         res = requests.get("https://api.xygeng.cn/one", timeout=10)
         js = res.json()
-        return js["data"]["content"]
+        text = js["data"]["content"]
+        if len(text) > 45:
+            text = text[:45]
+        return text
     except Exception:
         return "保持热爱，奔赴美好"
 
@@ -154,7 +188,7 @@ if __name__ == "__main__":
     b2_text = calc_birthday(BIRTHDAY2)
     b3_text = calc_birthday(BIRTHDAY3)
 
-    weather_text = get_weather(CITY)
+    weather_text = get_weather()
     chp_text = get_caihongpi() if SWITCH_CAIHONGPI else ""
     lizhi_text = get_lizhi() if SWITCH_LIZHI else ""
     en_text = get_en_sentence() if SWITCH_EN else ""
