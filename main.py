@@ -10,7 +10,6 @@ APP_ID = cfg["app_id"]
 APP_SECRET = cfg["app_secret"]
 TEMPLATE_ID = cfg["template_id"]
 USER_LIST = cfg["user"]
-CITY = cfg["city"]
 LOVE_START = cfg["love_start"]
 BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
@@ -33,29 +32,29 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-# WMO天气编码转中文
-weather_code_map = {
-    0: "晴天",
-    1: "晴",
-    2: "少云",
-    3: "阴天",
-    45: "雾",
-    48: "雾凇",
-    51: "毛毛雨",
-    53: "毛毛雨",
-    55: "毛毛雨",
-    61: "小雨",
-    63: "中雨",
-    65: "大雨",
-    80: "阵雨",
-    81: "阵雨",
-    82: "强阵雨",
-    95: "雷暴",
-    96: "雷暴伴冰雹",
-    99: "强雷暴"
+# WMO天气编码 + 配套提示
+weather_rule = {
+    0: {"name": "晴天", "tip": "阳光很好，记得防晒"},
+    1: {"name": "晴", "tip": "阳光很好，记得防晒"},
+    2: {"name": "少云", "tip": "天气舒服，适合出门"},
+    3: {"name": "阴天", "tip": "阴天，出门建议随身带伞"},
+    45: {"name": "雾", "tip": "有雾，能见度低，路上慢行"},
+    48: {"name": "雾凇", "tip": "路面易滑，出行注意安全"},
+    51: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
+    53: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
+    55: {"name": "毛毛雨", "tip": "有小雨，记得带伞"},
+    61: {"name": "小雨", "tip": "下雨啦，带伞，小心路滑"},
+    63: {"name": "中雨", "tip": "中雨，出门务必带伞，注意防滑"},
+    65: {"name": "大雨", "tip": "大雨，尽量减少外出，注意安全"},
+    80: {"name": "阵雨", "tip": "阵雨不定时，随身带伞备用"},
+    81: {"name": "阵雨", "tip": "阵雨不定时，随身带伞备用"},
+    82: {"name": "强阵雨", "tip": "强阵雨，出门带伞，注意避雨"},
+    95: {"name": "雷暴", "tip": "打雷下雨，尽量不要在户外久待"},
+    96: {"name": "雷暴伴冰雹", "tip": "强对流天气，尽量待在室内"},
+    99: {"name": "强雷暴", "tip": "强雷暴，注意安全，减少外出"},
 }
 
-# Open-Meteo 广州 23.13,113.27 实时天气+当前温度
+# Open-Meteo 广州 23.13,113.27 实时天气+温度+提示
 def get_weather():
     params = {
         "latitude": 23.13,
@@ -70,34 +69,34 @@ def get_weather():
         cw = data["current_weather"]
         code = cw["weathercode"]
         temp = round(cw["temperature"])
-        weather_txt = weather_code_map.get(code, "多云")
-        return f"{weather_txt}，{temp}℃"
+        info = weather_rule.get(code, {"name": "多云", "tip": "今日平安顺遂"})
+        return f"{info['name']}，{temp}℃｜{info['tip']}"
     except Exception as e:
         print("天气接口异常", e)
         return "天气暂时获取失败，记得照顾好自己"
 
 
-# 彩虹屁，限制最多45个字，防止微信截断
+# 彩虹屁，限制最多30个字
 def get_caihongpi():
     try:
         res = requests.get("https://api.shadiao.pro/chp", timeout=10)
         js = res.json()
         text = js["data"]["text"]
-        if len(text) > 45:
-            text = text[:45]
+        if len(text) > 30:
+            text = text[:30]
         return text
     except Exception:
         return "今日也要开开心心"
 
 
-# 励志语录，限制最多45个字
+# 励志语录，限制最多30个字
 def get_lizhi():
     try:
         res = requests.get("https://api.xygeng.cn/one", timeout=10)
         js = res.json()
         text = js["data"]["content"]
-        if len(text) > 45:
-            text = text[:45]
+        if len(text) > 30:
+            text = text[:30]
         return text
     except Exception:
         return "保持热爱，奔赴美好"
