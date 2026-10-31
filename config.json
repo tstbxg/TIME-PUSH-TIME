@@ -12,6 +12,10 @@
     "Whether_tip": true,
     "Whether_health": true,
     "Whether_lucky": true,
+    "birthday1": "05-20",
+    "birthday2": "08-15"
+
+
     "tianxing_API": "7e4342d0d8f8d927af149d07be9747a5",
     "astro": "白羊座"
 }
