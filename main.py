@@ -15,7 +15,6 @@ LOVE_START = cfg["love_start"]
 BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
 BIRTHDAY3 = cfg.get("birthday3", "")
-QWEATHER_KEY = cfg.get("qweather_key", "")
 ASTRO = cfg.get("astro", "aries")
 
 # 功能开关
@@ -34,24 +33,20 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-# 和风天气 - 直接使用广州固定ID：101280101，跳过城市搜索接口
-def get_weather(qkey, city_name):
-    if not qkey:
-        return "暂时无法获取天气，记得好好照顾自己"
+# 免费无key天气接口（适配GitHub海外机器，广州）
+def get_weather(city_name):
     try:
-        loc_id = "101280101"
-        weather_url = f"https://devapi.qweather.com/v7/weather/now?location={loc_id}&key={qkey}"
-        r2 = requests.get(weather_url, timeout=10)
-        j2 = r2.json()
-        if j2.get("code") == "200":
-            now = j2["now"]
-            return f"{now['text']}，气温{now['temp']}℃，体感{now['feelsLike']}℃"
+        url = "https://api.vvhan.com/api/weather?city=广州"
+        r = requests.get(url, timeout=12)
+        j = r.json()
+        if j.get("success"):
+            info = j["data"]
+            return f"{info['type']}，气温{info['low']}~{info['high']}"
         else:
-            print("和风返回code:", j2.get("code"), j2.get("message"))
-            return "暂时无法获取天气，记得好好照顾自己"
+            return "天气暂时获取失败，记得照顾好自己"
     except Exception as e:
         print("天气接口异常：", str(e))
-        return "暂时无法获取天气，记得好好照顾自己"
+        return "天气暂时获取失败，记得照顾好自己"
 
 
 # 彩虹屁
@@ -159,7 +154,7 @@ if __name__ == "__main__":
     b2_text = calc_birthday(BIRTHDAY2)
     b3_text = calc_birthday(BIRTHDAY3)
 
-    weather_text = get_weather(QWEATHER_KEY, CITY)
+    weather_text = get_weather(CITY)
     chp_text = get_caihongpi() if SWITCH_CAIHONGPI else ""
     lizhi_text = get_lizhi() if SWITCH_LIZHI else ""
     en_text = get_en_sentence() if SWITCH_EN else ""
