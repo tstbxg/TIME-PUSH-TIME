@@ -2,11 +2,9 @@ import json
 import requests
 from datetime import datetime, date
 import os
-
-# 时区
 os.environ["TZ"] = "Asia/Shanghai"
 
-# 只给励志用的截断函数，其他内容不动
+# 仅励志使用这个截断函数
 def cut_lizhi(text, max_len=18):
     if not isinstance(text, str):
         text = str(text)
@@ -42,8 +40,11 @@ birth2 = cfg.get("birthday2","").strip()
 
 def get_access_token():
     url = f"https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={APP_ID}&secret={APP_SECRET}"
-    res = requests.get(url,timeout=15).json()
-    return res.get("access_token")
+    try:
+        res = requests.get(url,timeout=15).json()
+        return res.get("access_token")
+    except:
+        return None
 
 def calc_love_days():
     start = datetime.strptime(LOVE_START,"%Y-%m-%d").date()
@@ -61,10 +62,10 @@ def get_birthday_count(birth_str):
     diff = (next_b - today).days
     return f"还有{diff}天"
 
-# 和风天气（原样，兜底文案）
+# 和风天气
 def get_weather():
     if not QWEATHER_KEY:
-        return "天气获取失败"
+        return "暂未配置天气key"
     try:
         loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={CITY}&key={QWEATHER_KEY}"
         loc_res = requests.get(loc_url,timeout=12).json()
@@ -80,7 +81,7 @@ def get_weather():
         pass
     return "天气获取失败"
 
-# 彩虹屁（不截断，兜底）
+# 彩虹屁【不截断】
 def get_caihongpi():
     if not SWITCH["caihongpi"] or not TIANXING_KEY:
         return "愿你今日万事顺心"
@@ -92,7 +93,7 @@ def get_caihongpi():
         pass
     return "愿你今日万事顺心"
 
-# ✅励志吉言：单独做18字截断，其他不动
+# 励志吉言【唯一截断】
 def get_lizhi():
     if not SWITCH["lizhi"] or not TIANXING_KEY:
         return "保持热爱奔赴山海"
@@ -104,7 +105,7 @@ def get_lizhi():
         pass
     return "保持热爱奔赴山海"
 
-# 英文句子（原样，兜底）
+# 英文句子【不截断】
 def get_en():
     if not SWITCH["en"] or not TIANXING_KEY:
         return "Have a nice day."
@@ -116,7 +117,7 @@ def get_en():
         pass
     return "Have a nice day."
 
-# 温馨提示（原样，兜底）
+# 温馨提示【不截断】
 def get_tip():
     if not SWITCH["tip"] or not TIANXING_KEY:
         return "好好休息，照顾好自己"
@@ -128,7 +129,7 @@ def get_tip():
         pass
     return "好好休息，照顾好自己"
 
-# 健康小知识（原样，兜底）
+# 健康小知识【不截断】
 def get_health():
     if not SWITCH["health"] or not TIANXING_KEY:
         return "规律作息，身体健康最重要"
@@ -144,7 +145,7 @@ def get_health():
 def get_lucky():
     return "今日好运在线"
 
-# 星座运势（原样，兜底）
+# 星座运势【不截断】
 def get_star():
     if not SWITCH["star"] or not TIANXING_KEY:
         return "运势平稳，万事顺心"
