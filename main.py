@@ -14,7 +14,8 @@ PROVINCE = cfg["province"]
 CITY = cfg["city"]
 BIRTHDAY1 = cfg["birthday1"]
 BIRTHDAY2 = cfg["birthday2"]
-TIANXING_KEY = cfg.get("tianxing_key", "")
+# 这里换成和风天气key，config里新增 qweather_key
+QWEATHER_KEY = cfg.get("qweather_key", "")
 
 
 def get_access_token():
@@ -23,123 +24,97 @@ def get_access_token():
     return res.json().get("access_token")
 
 
-def get_weather(api_key, city):
-    if not api_key:
+# 和风天气
+def get_weather(qkey, city_name):
+    if not qkey:
         return "暂时无法获取天气，记得好好照顾自己"
     try:
-        url = f"https://api.tianapi.com/tianqi/index?key={api_key}&city={city}"
-        res = requests.get(url, timeout=10)
-        js = res.json()
-        if js.get("code") == 200:
-            info = js["newslist"][0]
-            return f"{info['weather']}，气温{info['low']}~{info['high']}，{info['tips']}"
+        # 先拿城市id
+        loc_url = f"https://geoapi.qweather.com/v2/city/lookup?location={city_name}&key={qkey}"
+        r1 = requests.get(loc_url, timeout=10)
+        j1 = r1.json()
+        if j1.get("code") != "200":
+            return "暂时无法获取天气，记得好好照顾自己"
+        loc_id = j1["location"][0]["id"]
+        # 获取实况天气
+        weather_url = f"https://devapi.qweather.com/v7/weather/now?location={loc_id}&key={qkey}"
+        r2 = requests.get(weather_url, timeout=10)
+        j2 = r2.json()
+        if j2.get("code") == "200":
+            now = j2["now"]
+            return f"{now['text']}，气温{now['temp']}℃，体感{now['feelsLike']}℃"
         else:
             return "暂时无法获取天气，记得好好照顾自己"
     except Exception:
         return "暂时无法获取天气，记得好好照顾自己"
 
 
-def get_caihongpi(api_key):
-    if not api_key:
-        return "今日也要开开心心"
+# 彩虹屁 免费接口
+def get_caihongpi():
     try:
-        url = f"https://api.tianapi.com/caihongpi/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.shadiao.pro/chp", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "今日也要开开心心"
+        return js["data"]["text"]
     except Exception:
         return "今日也要开开心心"
 
 
-def get_lizhi(api_key):
-    if not api_key:
-        return "保持热爱，奔赴美好"
+# 励志语录
+def get_lizhi():
     try:
-        url = f"https://api.tianapi.com/lizhi/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.xygeng.cn/one", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "保持热爱，奔赴美好"
+        return js["data"]["content"]
     except Exception:
         return "保持热爱，奔赴美好"
 
 
-def get_en_sentence(api_key):
-    if not api_key:
-        return "Hope everything goes well."
+# 英文句子
+def get_en_sentence():
     try:
-        url = f"https://api.tianapi.com/en/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.vvhan.com/api/en", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "Hope everything goes well."
+        return js["data"]["content"]
     except Exception:
         return "Hope everything goes well."
 
 
-def get_tip(api_key):
-    if not api_key:
-        return "好好休息，照顾好自己"
+# 温馨提示
+def get_tip():
     try:
-        url = f"https://api.tianapi.com/tip/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.qqsuu.cn/api/dm-tips", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "好好休息，照顾好自己"
+        return js["data"]["content"]
     except Exception:
         return "好好休息，照顾好自己"
 
 
-def get_health(api_key):
-    if not api_key:
-        return "规律作息，身体健康最重要"
+# 健康小知识
+def get_health():
     try:
-        url = f"https://api.tianapi.com/healthtip/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.qqsuu.cn/api/dm-health", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "规律作息，身体健康最重要"
+        return js["data"]["content"]
     except Exception:
         return "规律作息，身体健康最重要"
 
 
-def get_lucky(api_key):
-    if not api_key:
-        return "今日好运在线"
+# 今日好运
+def get_lucky():
     try:
-        url = f"https://api.tianapi.com/lucky/index?key={api_key}"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.qqsuu.cn/api/dm-lucky", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "今日好运在线"
+        return js["data"]["content"]
     except Exception:
         return "今日好运在线"
 
 
-def get_star(api_key):
-    if not api_key:
-        return "运势平稳，万事顺心"
+# 星座运势（白羊座aries，你可以自己改）
+def get_star():
     try:
-        url = f"https://api.tianapi.com/star/index?key={api_key}&astro=aries"
-        res = requests.get(url, timeout=10)
+        res = requests.get("https://api.qqsuu.cn/api/dm-star?astro=aries", timeout=10)
         js = res.json()
-        if js.get("code") == 200:
-            return js["newslist"][0]["content"]
-        else:
-            return "运势平稳，万事顺心"
+        return js["data"]["content"]
     except Exception:
         return "运势平稳，万事顺心"
 
@@ -174,14 +149,14 @@ if __name__ == "__main__":
     love_days = calc_love_day()
     b1 = calc_birthday(BIRTHDAY1)
     b2 = calc_birthday(BIRTHDAY2)
-    weather = get_weather(TIANXING_KEY, CITY)
-    caihongpi = get_caihongpi(TIANXING_KEY)
-    lizhi = get_lizhi(TIANXING_KEY)
-    en = get_en_sentence(TIANXING_KEY)
-    tip = get_tip(TIANXING_KEY)
-    health = get_health(TIANXING_KEY)
-    lucky = get_lucky(TIANXING_KEY)
-    star = get_star(TIANXING_KEY)
+    weather = get_weather(QWEATHER_KEY, CITY)
+    caihongpi = get_caihongpi()
+    lizhi = get_lizhi()
+    en = get_en_sentence()
+    tip = get_tip()
+    health = get_health()
+    lucky = get_lucky()
+    star = get_star()
 
     data = {
         "date": {"value": today_str},
@@ -198,14 +173,12 @@ if __name__ == "__main__":
         "star": {"value": star}
     }
 
-    # 标题在这里！就是小冯电视台开场白
     for openid in USER_LIST:
         post_data = {
             "touser": openid,
             "template_id": TEMPLATE_ID,
             "data": data,
-            "topcolor": "#FF6666",
-            "title": "Good Morning,这里是小冯电视台，现在为你播报"
+            "topcolor": "#FF6666"
         }
         url = f"https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={token}"
         resp = requests.post(url, json=post_data, timeout=15)
